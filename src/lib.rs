@@ -1,5 +1,5 @@
-use bitcoin::consensus::encode::Encodable;
-use bitcoin::util::bip158::BitStreamWriter;
+mod bit;
+
 use std::error::Error;
 
 const B: u8 = 66;
@@ -78,30 +78,31 @@ impl DataMatrix {
         let total_size = header_size + data_size;
         let mut bmp_data = vec![];
 
-        B.consensus_encode(&mut bmp_data).unwrap();
-        M.consensus_encode(&mut bmp_data).unwrap();
-        total_size.consensus_encode(&mut bmp_data).unwrap(); // size of the bmp
-        0u16.consensus_encode(&mut bmp_data).unwrap(); // creator1
-        0u16.consensus_encode(&mut bmp_data).unwrap(); // creator2
-        header_size.consensus_encode(&mut bmp_data).unwrap(); // pixel offset
-        40u32.consensus_encode(&mut bmp_data).unwrap(); // dib header size
-        (width as u32).consensus_encode(&mut bmp_data).unwrap(); // width
-        (height as u32).consensus_encode(&mut bmp_data).unwrap(); // height
-        1u16.consensus_encode(&mut bmp_data).unwrap(); // planes
-        1u16.consensus_encode(&mut bmp_data).unwrap(); // bitsperpixel
-        0u32.consensus_encode(&mut bmp_data).unwrap(); // no compression
-        data_size.consensus_encode(&mut bmp_data).unwrap(); // size of the raw bitmap data with padding
-        2835u32.consensus_encode(&mut bmp_data).unwrap(); // hres
-        2835u32.consensus_encode(&mut bmp_data).unwrap(); // vres
-        2u32.consensus_encode(&mut bmp_data).unwrap(); // num_colors
-        2u32.consensus_encode(&mut bmp_data).unwrap(); // num_imp_colors
+        // https://en.wikipedia.org/wiki/BMP_file_format
+        bmp_data.push(B);
+        bmp_data.push(M);
+        bmp_data.extend(&total_size.to_le_bytes()); // size of the bmp
+        bmp_data.extend(&0u16.to_le_bytes()); // creator1
+        bmp_data.extend(&0u16.to_le_bytes()); // creator2
+        bmp_data.extend(&header_size.to_le_bytes()); // pixel offset
+        bmp_data.extend(&40u32.to_le_bytes()); // dib header size
+        bmp_data.extend(&(width as u32).to_le_bytes()); // width
+        bmp_data.extend(&(height as u32).to_le_bytes()); // height
+        bmp_data.extend(&1u16.to_le_bytes()); // planes
+        bmp_data.extend(&1u16.to_le_bytes()); // bitsperpixel
+        bmp_data.extend(&0u32.to_le_bytes()); // no compression
+        bmp_data.extend(&data_size.to_le_bytes()); // size of the raw bitmap data with padding
+        bmp_data.extend(&2835u32.to_le_bytes()); // hres
+        bmp_data.extend(&2835u32.to_le_bytes()); // vres
+        bmp_data.extend(&2u32.to_le_bytes()); // num_colors
+        bmp_data.extend(&2u32.to_le_bytes()); // num_imp_colors
 
         // color_pallet
-        0x00_FF_FF_FFu32.consensus_encode(&mut bmp_data).unwrap();
-        0x00_00_00_00u32.consensus_encode(&mut bmp_data).unwrap();
+        bmp_data.extend(&0x00_FF_FF_FFu32.to_le_bytes());
+        bmp_data.extend(&0x00_00_00_00u32.to_le_bytes());
 
         let mut data = Vec::new();
-        let mut writer = BitStreamWriter::new(&mut data);
+        let mut writer = bit::BitStreamWriter::new(&mut data);
 
         for i in 0..height {
             for j in 0..width {
@@ -133,9 +134,7 @@ fn padding(n: u32) -> u32 {
 
 #[cfg(test)]
 mod test {
-    use crate::{bytes_per_row, padding, DataMatrix};
-    use std::fs::File;
-    use std::io::{Read, Write};
+    use crate::*;
 
     #[test]
     fn test_padding() {
