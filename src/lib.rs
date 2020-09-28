@@ -102,9 +102,9 @@ struct BmpHeader {
 }
 
 impl BmpHeader {
-    pub fn from_bytes(bytes: Vec<u8>) {
+    /*pub fn from_bytes(_bytes: Vec<u8>) {
         unimplemented!();
-    }
+    }*/
 
     pub fn write(&self) -> Vec<u8> {
         let color_pallet_size = 2 * 4; // 2 colors each 4 bytes
