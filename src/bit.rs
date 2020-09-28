@@ -60,7 +60,10 @@ impl<'a> BitStreamWriter<'a> {
     /// Write nbits bits from data
     pub fn write(&mut self, data: u64, mut nbits: u8) -> Result<usize, io::Error> {
         if nbits > 64 {
-            return Err(io::Error::new(io::ErrorKind::Other, "can not write more than 64 bits at once"));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "can not write more than 64 bits at once",
+            ));
         }
         let mut wrote = 0;
         while nbits > 0 {

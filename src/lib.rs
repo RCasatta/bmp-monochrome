@@ -67,45 +67,19 @@ impl DataMatrix {
     /// Returns a monocromatic bitmap
     pub fn bmp(&self) -> Result<Vec<u8>, Box<dyn Error>> {
         let matrix = self.clone();
-        let width = matrix.width;
-        let height = matrix.height();
+        let width = matrix.width as u32;
+        let height = matrix.height() as u32;
 
-        let color_pallet_size = 2 * 4; // 2 colors each 4 bytes
-        let header_size = 2 + 12 + 40 + color_pallet_size;
-        let bytes_per_row = bytes_per_row(width as u32);
-        let padding = padding(bytes_per_row);
-        let data_size = (bytes_per_row + padding) * (height as u32);
-        let total_size = header_size + data_size;
         let mut bmp_data = vec![];
-
-        // https://en.wikipedia.org/wiki/BMP_file_format
-        bmp_data.push(B);
-        bmp_data.push(M);
-        bmp_data.extend(&total_size.to_le_bytes()); // size of the bmp
-        bmp_data.extend(&0u16.to_le_bytes()); // creator1
-        bmp_data.extend(&0u16.to_le_bytes()); // creator2
-        bmp_data.extend(&header_size.to_le_bytes()); // pixel offset
-        bmp_data.extend(&40u32.to_le_bytes()); // dib header size
-        bmp_data.extend(&(width as u32).to_le_bytes()); // width
-        bmp_data.extend(&(height as u32).to_le_bytes()); // height
-        bmp_data.extend(&1u16.to_le_bytes()); // planes
-        bmp_data.extend(&1u16.to_le_bytes()); // bitsperpixel
-        bmp_data.extend(&0u32.to_le_bytes()); // no compression
-        bmp_data.extend(&data_size.to_le_bytes()); // size of the raw bitmap data with padding
-        bmp_data.extend(&2835u32.to_le_bytes()); // hres
-        bmp_data.extend(&2835u32.to_le_bytes()); // vres
-        bmp_data.extend(&2u32.to_le_bytes()); // num_colors
-        bmp_data.extend(&2u32.to_le_bytes()); // num_imp_colors
-
-        // color_pallet
-        bmp_data.extend(&0x00_FF_FF_FFu32.to_le_bytes());
-        bmp_data.extend(&0x00_00_00_00u32.to_le_bytes());
+        let header = BmpHeader { height, width };
+        let padding = header.padding() as u8;
+        bmp_data.extend(header.write());
 
         let mut data = Vec::new();
         let mut writer = bit::BitStreamWriter::new(&mut data);
 
-        for i in 0..height {
-            for j in 0..width {
+        for i in 0..height as usize {
+            for j in 0..width as usize {
                 if *matrix.get(i, j).unwrap() {
                     writer.write(1, 1)?;
                 } else {
@@ -113,7 +87,7 @@ impl DataMatrix {
                 }
             }
             writer.write(0, 8 - (width % 8) as u8)?; // 0
-            writer.write(0, padding as u8 * 8)?; // 0
+            writer.write(0, padding * 8)?; // 0
         }
         writer.flush().unwrap();
         bmp_data.extend(data);
@@ -122,14 +96,60 @@ impl DataMatrix {
     }
 }
 
-/// return bytes needed for `width` bits
-fn bytes_per_row(width: u32) -> u32 {
-    (width + 7) / 8
+struct BmpHeader {
+    height: u32,
+    width: u32,
 }
 
-/// return the padding needed for n
-fn padding(n: u32) -> u32 {
-    (4 - n % 4) % 4
+impl BmpHeader {
+    pub fn from_bytes(bytes: Vec<u8>) {
+        unimplemented!();
+    }
+
+    pub fn write(&self) -> Vec<u8> {
+        let color_pallet_size = 2 * 4; // 2 colors each 4 bytes
+        let header_size = 2 + 12 + 40 + color_pallet_size;
+        let bytes_per_row = self.bytes_per_row();
+        let padding = self.padding();
+        let data_size = (bytes_per_row + padding) * (self.height as u32);
+        let total_size = header_size + data_size;
+        let mut output = vec![];
+
+        // https://en.wikipedia.org/wiki/BMP_file_format
+        output.push(B);
+        output.push(M);
+        output.extend(&total_size.to_le_bytes()); // size of the bmp
+        output.extend(&0u16.to_le_bytes()); // creator1
+        output.extend(&0u16.to_le_bytes()); // creator2
+        output.extend(&header_size.to_le_bytes()); // pixel offset
+        output.extend(&40u32.to_le_bytes()); // dib header size
+        output.extend(&(self.width as u32).to_le_bytes()); // width
+        output.extend(&(self.height as u32).to_le_bytes()); // height
+        output.extend(&1u16.to_le_bytes()); // planes
+        output.extend(&1u16.to_le_bytes()); // bitsperpixel
+        output.extend(&0u32.to_le_bytes()); // no compression
+        output.extend(&data_size.to_le_bytes()); // size of the raw bitmap data with padding
+        output.extend(&2835u32.to_le_bytes()); // hres
+        output.extend(&2835u32.to_le_bytes()); // vres
+        output.extend(&2u32.to_le_bytes()); // num_colors
+        output.extend(&2u32.to_le_bytes()); // num_imp_colors
+
+        // color_pallet
+        output.extend(&0x00_FF_FF_FFu32.to_le_bytes());
+        output.extend(&0x00_00_00_00u32.to_le_bytes());
+
+        output
+    }
+
+    /// return bytes needed for `width` bits
+    fn bytes_per_row(&self) -> u32 {
+        (self.width + 7) / 8
+    }
+
+    /// return the padding
+    fn padding(&self) -> u32 {
+        (4 - self.bytes_per_row() % 4) % 4
+    }
 }
 
 #[cfg(test)]
@@ -138,22 +158,41 @@ mod test {
 
     #[test]
     fn test_padding() {
-        assert_eq!(padding(0), 0);
-        assert_eq!(padding(1), 3);
-        assert_eq!(padding(2), 2);
-        assert_eq!(padding(3), 1);
-        assert_eq!(padding(4), 0);
+        let mut header = BmpHeader {
+            height: 0,
+            width: 0,
+        };
+        assert_eq!(header.padding(), 0);
+
+        header.width = 1;
+        assert_eq!(header.padding(), 3);
+
+        header.width = 9;
+        assert_eq!(header.padding(), 2);
+
+        header.width = 17;
+        assert_eq!(header.padding(), 1);
+
+        header.width = 25;
+        assert_eq!(header.padding(), 0);
     }
 
     #[test]
     fn test_bytes_per_row() {
-        assert_eq!(bytes_per_row(0), 0);
-        assert_eq!(bytes_per_row(1), 1);
-        assert_eq!(bytes_per_row(3), 1);
-        assert_eq!(bytes_per_row(8), 1);
-        assert_eq!(bytes_per_row(9), 2);
-        assert_eq!(bytes_per_row(64), 8);
-        assert_eq!(bytes_per_row(65), 9);
+        let mut header = BmpHeader {
+            height: 0,
+            width: 0,
+        };
+        assert_eq!(header.bytes_per_row(), 0);
+
+        header.width= 1;
+        assert_eq!(header.bytes_per_row(), 1);
+
+        header.width= 8;
+        assert_eq!(header.bytes_per_row(), 1);
+
+        header.width= 9;
+        assert_eq!(header.bytes_per_row(), 2);
     }
 
     #[test]
