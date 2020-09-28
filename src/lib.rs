@@ -1,6 +1,6 @@
-mod bit;
+use std::io::Error;
 
-use std::error::Error;
+mod bit;
 
 const B: u8 = 66;
 const M: u8 = 77;
@@ -11,7 +11,19 @@ pub struct DataMatrix {
     width: usize,
 }
 
+#[derive(Debug)]
+pub struct BmpError;
+
 impl DataMatrix {
+
+    pub fn new(data: Vec<bool>, width: usize) -> Result<DataMatrix, BmpError> {
+        if data.is_empty() || data.len() % width != 0 {
+            Err(BmpError)
+        } else {
+            Ok(DataMatrix{ data, width})
+        }
+    }
+
     fn height(&self) -> usize {
         self.data.len() / self.width
     }
@@ -65,7 +77,7 @@ impl DataMatrix {
     }
 
     /// Returns a monocromatic bitmap
-    pub fn bmp(&self) -> Result<Vec<u8>, Box<dyn Error>> {
+    pub fn bmp(&self) -> Result<Vec<u8>, BmpError> {
         let matrix = self.clone();
         let width = matrix.width as u32;
         let height = matrix.height() as u32;
@@ -93,6 +105,12 @@ impl DataMatrix {
         bmp_data.extend(data);
 
         Ok(bmp_data)
+    }
+}
+
+impl From<std::io::Error> for BmpError {
+    fn from(_: Error) -> Self {
+        BmpError
     }
 }
 
@@ -155,6 +173,17 @@ impl BmpHeader {
 #[cfg(test)]
 mod test {
     use crate::*;
+
+    #[test]
+    fn test_data_matrix() {
+        assert!(DataMatrix::new(vec![], 1).is_err());
+        assert!(DataMatrix::new(vec![true], 1).is_ok());
+        assert!(DataMatrix::new(vec![true], 2).is_err());
+        assert!(DataMatrix::new(vec![true, false], 2).is_ok());
+        assert!(DataMatrix::new(vec![true, false], 1).is_ok());
+        assert!(DataMatrix::new(vec![true, false, true], 1).is_ok());
+        assert!(DataMatrix::new(vec![true, false, true], 2).is_err());
+    }
 
     #[test]
     fn test_padding() {
