@@ -1,7 +1,7 @@
 //! # BMP monochrome
 //!
-//! This library creates black and white bitmap with no extra dependencies,
-//! especially useful to encode QR-codes
+//! This library encode and decode monochromatic bitmap with no extra dependencies.
+//! Especially useful to encode QR-codes
 //!
 
 #![deny(missing_docs)]
