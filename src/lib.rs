@@ -1,3 +1,11 @@
+//! # BMP monochrome
+//!
+//! This library creates black and white bitmap with no extra dependencies,
+//! especially useful to encode QR-codes
+//!
+
+#![deny(missing_docs)]
+
 use std::io::Error;
 
 mod bit;
@@ -5,22 +13,25 @@ mod bit;
 const B: u8 = 66;
 const M: u8 = 77;
 
+/// Represent the data that are going to be encoded in the bitmap
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataMatrix {
     data: Vec<bool>,
     width: usize,
 }
 
+/// Internal error struct
 #[derive(Debug)]
 pub struct BmpError;
 
 impl DataMatrix {
 
+    /// Creates a new DataMatrix, failing if `data` is empty or its length not a multiple of `width`
     pub fn new(data: Vec<bool>, width: usize) -> Result<DataMatrix, BmpError> {
         if data.is_empty() || data.len() % width != 0 {
             Err(BmpError)
         } else {
-            Ok(DataMatrix{ data, width})
+            Ok(DataMatrix { data, width })
         }
     }
 
@@ -214,13 +225,13 @@ mod test {
         };
         assert_eq!(header.bytes_per_row(), 0);
 
-        header.width= 1;
+        header.width = 1;
         assert_eq!(header.bytes_per_row(), 1);
 
-        header.width= 8;
+        header.width = 8;
         assert_eq!(header.bytes_per_row(), 1);
 
-        header.width= 9;
+        header.width = 9;
         assert_eq!(header.bytes_per_row(), 2);
     }
 
