@@ -12,3 +12,6 @@ keywords = ["bmp", "monochrome"]
 readme = "README.md"
 
 [dependencies]
+
+[dev-dependencies]
+rand = "0.7.3"

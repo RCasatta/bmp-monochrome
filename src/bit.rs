@@ -1,6 +1,5 @@
 use std::io;
 
-/*
 /// Bitwise stream reader
 pub struct BitStreamReader<'a> {
     buffer: [u8; 1],
@@ -13,7 +12,7 @@ impl<'a> BitStreamReader<'a> {
     pub fn new(reader: &'a mut dyn io::Read) -> BitStreamReader {
         BitStreamReader {
             buffer: [0u8],
-            reader: reader,
+            reader,
             offset: 8,
         }
     }
@@ -21,7 +20,10 @@ impl<'a> BitStreamReader<'a> {
     /// Read nbit bits
     pub fn read(&mut self, mut nbits: u8) -> Result<u64, io::Error> {
         if nbits > 64 {
-            return Err(io::Error::new(io::ErrorKind::Other, "can not read more than 64 bits at once"));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "can not read more than 64 bits at once",
+            ));
         }
         let mut data = 0u64;
         while nbits > 0 {
@@ -38,7 +40,6 @@ impl<'a> BitStreamReader<'a> {
         Ok(data)
     }
 }
-*/
 
 /// Bitwise stream writer
 pub struct BitStreamWriter<'a> {
@@ -52,7 +53,7 @@ impl<'a> BitStreamWriter<'a> {
     pub fn new(writer: &'a mut dyn io::Write) -> BitStreamWriter {
         BitStreamWriter {
             buffer: [0u8],
-            writer: writer,
+            writer,
             offset: 0,
         }
     }
