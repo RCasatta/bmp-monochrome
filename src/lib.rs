@@ -6,6 +6,7 @@
 
 #![deny(missing_docs)]
 
+use std::fmt::{Display, Formatter};
 use std::io::Error;
 
 mod bit;
@@ -40,6 +41,14 @@ pub enum BmpError {
     /// Relative to the data
     Data,
 }
+
+impl Display for BmpError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for BmpError {}
 
 #[derive(Debug)]
 struct BmpHeader {

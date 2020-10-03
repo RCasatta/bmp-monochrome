@@ -39,3 +39,7 @@ jobs:
         with:
           command: test
           args:  --verbose --all
+      - uses: actions-rs/cargo@v1
+        with:
+          command: run
+          args:  --example bmp
