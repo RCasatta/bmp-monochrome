@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 Generates
 
-![test](test.bmp)
+![test](https://raw.githubusercontent.com/RCasatta/bmp-monochrome/master/test.bmp)
 
 ## Minimum Supported Rust Version (MSRV)
 
