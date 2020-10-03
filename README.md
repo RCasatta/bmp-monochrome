@@ -21,6 +21,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
+Generates
+
+![test](test.bmp)
+
 ## Minimum Supported Rust Version (MSRV)
 
 *Rust 1.32*
