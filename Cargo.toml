@@ -1,6 +1,6 @@
 [package]
 name = "bmp-monochrome"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Riccardo Casatta <riccardo@casatta.it>"]
 edition = "2018"
 license = "MIT"
@@ -10,6 +10,10 @@ documentation = "https://docs.rs/bmp-monochrome/"
 description = "Encode and decode monochromatic bitmaps without additional dependencies, useful for QR codes."
 keywords = ["bmp", "monochrome"]
 readme = "README.md"
+
+[lib]
+name = "bmp_monochrome"
+path = "src/lib.rs"
 
 [dependencies]
 
