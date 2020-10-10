@@ -104,13 +104,9 @@ impl Bmp {
             data.extend(vec![false; width]);
         }
         for vec in self.data.chunks(self.width) {
-            for _ in 0..white_space {
-                data.push(false);
-            }
+            data.extend(vec![false; white_space]);
             data.extend(vec);
-            for _ in 0..white_space {
-                data.push(false);
-            }
+            data.extend(vec![false; white_space]);
         }
         for _ in 0..white_space {
             data.extend(vec![false; width]);
