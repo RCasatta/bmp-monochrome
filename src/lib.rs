@@ -66,12 +66,19 @@ impl Bmp {
         }
     }
 
-    fn height(&self) -> usize {
+    /// return the bmp height in pixel
+    pub fn height(&self) -> usize {
         self.data.len() / self.width
     }
 
+    /// return the bmp width in pixel
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    /// return the pixel situated at (i,j)
     /// could panic if (i * self.height() + j) >= self.data.len()
-    fn get(&self, i: usize, j: usize) -> bool {
+    pub fn get(&self, i: usize, j: usize) -> bool {
         let h = self.height() - i - 1;
         self.data[h * self.width + j]
     }
