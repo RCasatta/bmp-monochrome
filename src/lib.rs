@@ -113,17 +113,13 @@ impl Bmp {
     pub fn add_whitespace(&self, white_space: usize) -> Bmp {
         let width = self.width + white_space * 2;
         let mut data = vec![];
-        for _ in 0..white_space {
-            data.extend(vec![false; width]);
-        }
+        data.extend(vec![false; width * white_space]);
         for vec in self.data.chunks(self.width) {
             data.extend(vec![false; white_space]);
             data.extend(vec);
             data.extend(vec![false; white_space]);
         }
-        for _ in 0..white_space {
-            data.extend(vec![false; width]);
-        }
+        data.extend(vec![false; width * white_space]);
 
         Bmp { data, width }
     }
@@ -239,7 +235,7 @@ mod test {
     }
 
     #[test]
-    fn test_add() {
+    fn test_add_whitespace() {
         let data = Bmp {
             data: vec![false],
             width: 1,
