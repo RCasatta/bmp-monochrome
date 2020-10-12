@@ -16,7 +16,7 @@ impl Bmp {
 
         for i in 0..height as usize {
             for j in 0..width as usize {
-                if self.get(i, j) {
+                if self.pixel(i, j) {
                     writer.write(1, 1)?;
                 } else {
                     writer.write(0, 1)?;

@@ -78,9 +78,15 @@ impl Bmp {
 
     /// return the pixel situated at (i,j)
     /// could panic if (i * self.height() + j) >= self.data.len()
-    pub fn get(&self, i: usize, j: usize) -> bool {
+    pub fn pixel(&self, i: usize, j: usize) -> bool {
         let h = self.height() - i - 1;
         self.data[h * self.width + j]
+    }
+
+    /// scan the data vector linearly
+    /// could panic if (i * self.height() + j) >= self.data.len()
+    pub fn get(&self, i: usize, j: usize) -> bool {
+        self.data[i * self.width + j]
     }
 
     /// multiply by `mul` every pixel
@@ -215,6 +221,21 @@ mod test {
         };
 
         assert_eq!(data.mul(2), data_bigger);
+
+        let data = Bmp {
+            data: vec![false, false, false, true],
+            width: 2,
+        };
+
+        let data_bigger = Bmp {
+            data: vec![
+                false, false, false, false, false, false, false, false, false, false, true, true,
+                false, false, true, true,
+            ],
+            width: 4,
+        };
+
+        assert_eq!(data.mul(2), data_bigger);
     }
 
     #[test]
@@ -242,6 +263,9 @@ mod test {
         assert_eq!(data_test1, bytes_test1);
 
         let bmp_test2 = data_test1.mul(3).add_whitespace(12);
+        bmp_test2
+            .write(File::create("test_bmp/test2.bmp").unwrap())
+            .unwrap();
         let bytes_test2 = Bmp::read(&mut File::open("test_bmp/test2.bmp").unwrap()).unwrap();
         assert_eq!(bmp_test2, bytes_test2);
     }
