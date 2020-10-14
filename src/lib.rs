@@ -328,13 +328,8 @@ mod test {
     #[test]
     fn test_mul_div() {
         let expected = random_bmp();
-        expected
-            .write(File::create("expected.bmp").unwrap())
-            .unwrap();
         let mul = expected.mul(3);
-        mul.write(File::create("mul.bmp").unwrap()).unwrap();
         let div = mul.div(3).unwrap();
-        div.write(File::create("div.bmp").unwrap()).unwrap();
         assert_eq!(expected, div);
     }
 
