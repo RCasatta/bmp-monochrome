@@ -4,6 +4,7 @@ use std::io::{Cursor, Read};
 
 impl Bmp {
     /// Read the monochrome bitmap from a Read type, such a File
+    /// note that File read are not buffered and may be slow, see [Read](std::io::Read) Trait
     pub fn read<T: Read>(mut from: T) -> Result<Self, BmpError> {
         let mut header_bytes = [0u8; HEADER_SIZE as usize];
         from.read_exact(&mut header_bytes)?;
