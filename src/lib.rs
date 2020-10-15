@@ -22,7 +22,7 @@ const HEADER_SIZE: u32 = 2 + 12 + 40 + COLOR_PALLET_SIZE;
 /// In `data` the first element is the upper-left pixel, then proceed in the row.
 /// Last element of `data` is the lower-right pixel.
 /// Note in the serialized format the first element is the lower-left pixel
-/// see https://en.wikipedia.org/wiki/BMP_file_format
+/// see [BMP file format](https://en.wikipedia.org/wiki/BMP_file_format)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Bmp {
     data: Vec<bool>,
