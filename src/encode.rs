@@ -22,7 +22,7 @@ impl Bmp {
                     writer.write(0, 1)?;
                 }
             }
-            writer.write(0, 8 - (width % 8) as u8)?;
+            writer.write(0, (8 - (width % 8) as u8) % 8)?;
             writer.write(0, padding * 8)?;
         }
         writer.flush()?;
@@ -58,5 +58,29 @@ impl BmpHeader {
         to.write_all(&0x00_00_00_00u32.to_le_bytes())?; // color_pallet 1
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::Bmp;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_width8() {
+        // from issue https://github.com/RCasatta/bmp-monochrome/issues/2
+
+        let data: Vec<bool> = vec![
+            true, true, true, true, true, true, true, true, true, false, false, false, false,
+            false, false, true, true, false, false, false, false, false, false, true, true, true,
+            true, true, true, true, true, true,
+        ];
+
+        let bmp = Bmp::new(data.clone(), 8).unwrap();
+        let mut buffer = Cursor::new(vec![]);
+        bmp.write(&mut buffer).unwrap();
+        buffer.set_position(0);
+        let bmp = Bmp::read(buffer).unwrap();
+        assert_eq!(data, bmp.data);
     }
 }

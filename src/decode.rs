@@ -23,7 +23,7 @@ impl Bmp {
                     width_data.push(false);
                 }
             }
-            reader.read(8 - (width % 8) as u8)?;
+            reader.read((8 - (width % 8) as u8) % 8)?;
             reader.read(padding * 8)?;
             row_data.push(width_data.clone());
             width_data.clear();
