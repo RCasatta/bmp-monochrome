@@ -23,8 +23,8 @@ impl Bmp {
                     width_data.push(false);
                 }
             }
-            reader.read((8 - (width % 8) as u8) % 8)?;
-            reader.read(padding * 8)?;
+            reader.read((8 - (width % 8) as u8) % 8)?; // finish reading the full byte
+            reader.read(padding * 8)?; // read the padding such that every row is multiple of 4 bytes
             row_data.push(width_data.clone());
             width_data.clear();
         }
@@ -78,17 +78,13 @@ impl BmpHeader {
     }
 }
 
-/// Can't find spec limits, applying same rules as Windows Photo Viewer (Windows 8.1 x64)
-/// width*4 * (height + 1) <= 2147483647
-/// as written in https://medium.com/@dcoetzee/maximum-resolution-of-bmp-image-file-8c729b3f833a
-/// and the so obvious that was missing > 0
+/// arbitrary limit width * height < 100 million
+/// height and width must be > 0
 fn check_size(width: u32, height: u32) -> Result<(), BmpError> {
-    // width*4 * (height + 1) <= 2147483647
-    let err = || BmpError::Size(width, height);
-    let width_mul_4 = width.checked_mul(4).ok_or_else(err)?;
-    let height_plus_1 = height.checked_add(1).ok_or_else(err)?;
-    let result = width_mul_4.checked_mul(height_plus_1).ok_or_else(err)?;
-    if result <= 2147483647 && width > 0 && height > 0 {
+    let width_height = width
+        .checked_mul(height)
+        .ok_or_else(|| BmpError::Size(width, height))?;
+    if width_height <= 100_000_000 && width > 0 && height > 0 {
         Ok(())
     } else {
         Err(BmpError::Size(width, height))
@@ -154,7 +150,7 @@ mod test {
     }
 
     #[test]
-    fn test_fuzz_out_of_memory() {
+    fn test_fuzz_size_too_big() {
         let file = File::open("test_bmp/oom-f6080f661bd05569f2f68308feb0177311624c67").unwrap();
         match Bmp::read(file) {
             Err(BmpError::Size(a, b)) => assert_eq!((4294966802, 237), (a, b)),
@@ -163,7 +159,7 @@ mod test {
     }
 
     #[test]
-    fn test_fuzz_infinite_loop() {
+    fn test_fuzz_width_and_height_not_0() {
         let file = File::open("test_bmp/oom-6bacc6613ced424f3a6afaa18a02d18b64da4e7b").unwrap();
         match Bmp::read(file) {
             Err(BmpError::Size(a, b)) => assert_eq!((0, 268435502), (a, b)),
@@ -171,4 +167,12 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_fuzz_width_one_height_big() {
+        let file = File::open("test_bmp/oom-75d71108abf5cd21a267a343379395761a32f6d0").unwrap();
+        match Bmp::read(file) {
+            Err(BmpError::Size(a, b)) => assert_eq!((1, 251658240), (a, b)),
+            _ => assert!(false),
+        }
+    }
 }
