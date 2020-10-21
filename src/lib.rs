@@ -6,6 +6,7 @@
 
 #![deny(missing_docs)]
 
+use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use std::io::Error;
 
@@ -64,6 +65,11 @@ impl Bmp {
         if data.is_empty() || width == 0 || data.len() % width != 0 {
             Err(BmpError::Data)
         } else {
+            let height = data.len() / width;
+            check_size(
+                u32::try_from(width).map_err(|_| BmpError::Data)?,
+                u32::try_from(height).map_err(|_| BmpError::Data)?,
+            )?;
             Ok(Bmp { data, width })
         }
     }
@@ -220,6 +226,34 @@ impl BmpHeader {
     /// return the padding
     fn padding(&self) -> u32 {
         (4 - self.bytes_per_row() % 4) % 4
+    }
+}
+
+#[cfg(feature = "fuzz")]
+impl arbitrary::Arbitrary for Bmp {
+    fn arbitrary(u: &mut arbitrary::Unstructured<'_>) -> arbitrary::Result<Self> {
+        let width = u32::arbitrary(u)?;
+        let height = u32::arbitrary(u)?;
+        check_size(width, height).map_err(|_| arbitrary::Error::IncorrectFormat)?;
+        let total = width * height; // no overflow, since check_size passed
+        let mut data = Vec::with_capacity(total as usize);
+        for _ in 0..total {
+            data.push(bool::arbitrary(u)?);
+        }
+        Ok(Bmp::new(data, width as usize).map_err(|_| arbitrary::Error::IncorrectFormat)?)
+    }
+}
+
+/// arbitrary limit width * height < 100 million
+/// height and width must be > 0
+fn check_size(width: u32, height: u32) -> Result<(), BmpError> {
+    let width_height = width
+        .checked_mul(height)
+        .ok_or_else(|| BmpError::Size(width, height))?;
+    if width_height <= 100_000_000 && width > 0 && height > 0 {
+        Ok(())
+    } else {
+        Err(BmpError::Size(width, height))
     }
 }
 
