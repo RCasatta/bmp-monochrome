@@ -1,5 +1,5 @@
 use crate::bit::BitStreamReader;
-use crate::{Bmp, BmpError, BmpHeader, B, HEADER_SIZE, M};
+use crate::{check_size, Bmp, BmpError, BmpHeader, B, HEADER_SIZE, M};
 use std::io::{Cursor, Read};
 
 impl Bmp {
@@ -75,19 +75,6 @@ impl BmpHeader {
         check_size(width, height)?;
 
         Ok(BmpHeader { height, width })
-    }
-}
-
-/// arbitrary limit width * height < 100 million
-/// height and width must be > 0
-fn check_size(width: u32, height: u32) -> Result<(), BmpError> {
-    let width_height = width
-        .checked_mul(height)
-        .ok_or_else(|| BmpError::Size(width, height))?;
-    if width_height <= 100_000_000 && width > 0 && height > 0 {
-        Ok(())
-    } else {
-        Err(BmpError::Size(width, height))
     }
 }
 

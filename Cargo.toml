@@ -16,6 +16,10 @@ name = "bmp_monochrome"
 path = "src/lib.rs"
 
 [dependencies]
+arbitrary = { version = "0.4.7", optional = true }
 
 [dev-dependencies]
 rand = "0.7.3"
+
+[features]
+fuzz = ["arbitrary"]
