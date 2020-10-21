@@ -27,7 +27,7 @@ Generates
 
 ## Minimum Supported Rust Version (MSRV)
 
-*Rust 1.32*
+*Rust 1.34*
 
 Use
- [to_le_bytes](https://doc.rust-lang.org/std/primitive.u32.html#method.to_be_bytes) introduced in 1.32.0
+ [u32::try_from](https://doc.rust-lang.org/std/convert/trait.TryFrom.html) introduced in 1.34.0
