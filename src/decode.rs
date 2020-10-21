@@ -81,13 +81,14 @@ impl BmpHeader {
 /// Can't find spec limits, applying same rules as Windows Photo Viewer (Windows 8.1 x64)
 /// width*4 * (height + 1) <= 2147483647
 /// as written in https://medium.com/@dcoetzee/maximum-resolution-of-bmp-image-file-8c729b3f833a
+/// and the so obvious that was missing > 0
 fn check_size(width: u32, height: u32) -> Result<(), BmpError> {
     // width*4 * (height + 1) <= 2147483647
     let err = || BmpError::Size(width, height);
     let width_mul_4 = width.checked_mul(4).ok_or_else(err)?;
     let height_plus_1 = height.checked_add(1).ok_or_else(err)?;
     let result = width_mul_4.checked_mul(height_plus_1).ok_or_else(err)?;
-    if result <= 2147483647 {
+    if result <= 2147483647 && width > 0 && height > 0 {
         Ok(())
     } else {
         Err(BmpError::Size(width, height))
@@ -160,4 +161,14 @@ mod test {
             _ => assert!(false),
         }
     }
+
+    #[test]
+    fn test_fuzz_infinite_loop() {
+        let file = File::open("test_bmp/oom-6bacc6613ced424f3a6afaa18a02d18b64da4e7b").unwrap();
+        match Bmp::read(file) {
+            Err(BmpError::Size(a, b)) => assert_eq!((0, 268435502), (a, b)),
+            _ => assert!(false),
+        }
+    }
+
 }
