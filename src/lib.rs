@@ -232,15 +232,8 @@ impl BmpHeader {
 #[cfg(feature = "fuzz")]
 impl arbitrary::Arbitrary for Bmp {
     fn arbitrary(u: &mut arbitrary::Unstructured<'_>) -> arbitrary::Result<Self> {
-        let width = u32::arbitrary(u)?;
-        let height = u32::arbitrary(u)?;
-        check_size(width, height).map_err(|_| arbitrary::Error::IncorrectFormat)?;
-        let total = width * height; // no overflow, since check_size passed
-        let mut data = Vec::with_capacity(total as usize);
-        for _ in 0..total {
-            data.push(bool::arbitrary(u)?);
-        }
-        Ok(Bmp::new(data, width as usize).map_err(|_| arbitrary::Error::IncorrectFormat)?)
+        let vec = <Vec<u8>>::arbitrary(u)?;
+        Ok(Bmp::read(std::io::Cursor::new(vec)).map_err(|_| arbitrary::Error::IncorrectFormat)?)
     }
 }
 
