@@ -40,6 +40,8 @@ pub enum BmpError {
     Header,
     /// Relative to the data
     Data,
+    /// Relative to the size
+    Size(u32, u32),
 }
 
 impl Display for BmpError {

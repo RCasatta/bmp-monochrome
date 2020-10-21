@@ -36,6 +36,9 @@ impl Bmp {
 }
 
 impl BmpHeader {
+    /// read the BmpHeader from read Trait `T`
+    /// returns `BmpError::Size` for error related to the declared bmp size, see `check_size`
+    /// and `BmpError::Header` for any other error
     pub fn read<T: Read>(mut from: T) -> Result<Self, BmpError> {
         let b = ReadLE::read_u8(&mut from)?;
         let m = ReadLE::read_u8(&mut from)?;
@@ -69,7 +72,25 @@ impl BmpHeader {
             return Err(BmpError::Header);
         }
 
+        check_size(width, height)?;
+
         Ok(BmpHeader { height, width })
+    }
+}
+
+/// Can't find spec limits, applying same rules as Windows Photo Viewer (Windows 8.1 x64)
+/// width*4 * (height + 1) <= 2147483647
+/// as written in https://medium.com/@dcoetzee/maximum-resolution-of-bmp-image-file-8c729b3f833a
+fn check_size(width: u32, height: u32) -> Result<(), BmpError> {
+    // width*4 * (height + 1) <= 2147483647
+    let err = || BmpError::Size(width, height);
+    let width_mul_4 = width.checked_mul(4).ok_or_else(err)?;
+    let height_plus_1 = height.checked_add(1).ok_or_else(err)?;
+    let result = width_mul_4.checked_mul(height_plus_1).ok_or_else(err)?;
+    if result <= 2147483647 {
+        Ok(())
+    } else {
+        Err(BmpError::Size(width, height))
     }
 }
 
@@ -105,7 +126,7 @@ trait ReadLE {
 #[cfg(test)]
 mod test {
     use crate::decode::ReadLE;
-    use crate::BmpHeader;
+    use crate::{Bmp, BmpError, BmpHeader};
     use std::fs::File;
     use std::io::Cursor;
 
@@ -129,5 +150,14 @@ mod test {
         let bmp_header = BmpHeader::read(file).unwrap();
         assert_eq!(2, bmp_header.width);
         assert_eq!(2, bmp_header.height);
+    }
+
+    #[test]
+    fn test_fuzz_out_of_memory() {
+        let file = File::open("test_bmp/oom-f6080f661bd05569f2f68308feb0177311624c67").unwrap();
+        match Bmp::read(file) {
+            Err(BmpError::Size(a, b)) => assert_eq!((4294966802, 237), (a, b)),
+            _ => assert!(false),
+        }
     }
 }
