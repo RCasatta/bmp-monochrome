@@ -24,9 +24,15 @@ path = "fuzz_targets/fuzz_target_read.rs"
 test = false
 doc = false
 
-
 [[bin]]
 name = "fuzz_target_write"
 path = "fuzz_targets/fuzz_target_write.rs"
+test = false
+doc = false
+
+
+[[bin]]
+name = "fuzz_target_ops"
+path = "fuzz_targets/fuzz_target_ops.rs"
 test = false
 doc = false

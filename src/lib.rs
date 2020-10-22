@@ -9,10 +9,14 @@
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use std::io::Error;
+use std::num::TryFromIntError;
 
 mod bit;
 mod decode;
 mod encode;
+
+#[cfg(feature = "fuzz")]
+pub mod fuzz;
 
 const B: u8 = 66;
 const M: u8 = 77;
@@ -53,6 +57,12 @@ impl Display for BmpError {
 
 impl std::error::Error for BmpError {}
 
+impl From<std::num::TryFromIntError> for BmpError {
+    fn from(_: TryFromIntError) -> Self {
+        BmpError::Generic
+    }
+}
+
 #[derive(Debug)]
 struct BmpHeader {
     height: u32,
@@ -66,10 +76,7 @@ impl Bmp {
             Err(BmpError::Data)
         } else {
             let height = data.len() / width;
-            check_size(
-                u32::try_from(width).map_err(|_| BmpError::Data)?,
-                u32::try_from(height).map_err(|_| BmpError::Data)?,
-            )?;
+            check_size(u32::try_from(width)?, u32::try_from(height)?)?;
             Ok(Bmp { data, width })
         }
     }
@@ -98,11 +105,21 @@ impl Bmp {
     }
 
     /// return a new Bmp where every pixel is multiplied by `mul`
-    pub fn mul(&self, mul: usize) -> Bmp {
-        let mut data = vec![];
+    pub fn mul(&self, mul: usize) -> Result<Bmp, BmpError> {
+        let new_width = self
+            .width
+            .checked_mul(mul)
+            .ok_or_else(|| BmpError::Generic)?;
+        let new_height = self
+            .height()
+            .checked_mul(mul)
+            .ok_or_else(|| BmpError::Generic)?;
+        check_size(u32::try_from(new_width)?, u32::try_from(new_height)?)?;
+        let total = new_width * new_height;
+        let mut data = Vec::with_capacity(total);
 
         for i in 0..self.height() {
-            let mut row = vec![];
+            let mut row = Vec::with_capacity(new_width);
             for j in 0..self.width {
                 for _ in 0..mul {
                     row.push(self.get(i, j));
@@ -113,15 +130,18 @@ impl Bmp {
             }
         }
 
-        let width = self.width * mul;
-        Bmp { data, width }
+        let width = new_width;
+        Ok(Bmp { data, width })
     }
 
     /// return a new Bmp where every square is divided by `div`
     /// if all the square is not of the same color it errors
     pub fn div(&self, div: usize) -> Result<Bmp, BmpError> {
+        if div <= 1 {
+            return Err(BmpError::Generic);
+        }
         let new_width = self.width / div;
-        if div <= 1 || new_width == 0 {
+        if new_width == 0 {
             return Err(BmpError::Generic);
         }
         let mut new_data = vec![];
@@ -155,9 +175,17 @@ impl Bmp {
     }
 
     /// return a new Bmp with `border_size` pixels around
-    pub fn add_white_border(&self, border_size: usize) -> Bmp {
-        let width = self.width + border_size * 2;
-        let mut data = vec![];
+    pub fn add_white_border(&self, border_size: usize) -> Result<Bmp, BmpError> {
+        let width = self.width
+            + border_size
+                .checked_mul(2)
+                .ok_or_else(|| BmpError::Generic)?;
+        let height = self.height()
+            + border_size
+                .checked_mul(2)
+                .ok_or_else(|| BmpError::Generic)?;
+        check_size(u32::try_from(width)?, u32::try_from(height)?)?;
+        let mut data = Vec::with_capacity(width * height);
         data.extend(vec![false; width * border_size]);
         for vec in self.data.chunks(self.width) {
             data.extend(vec![false; border_size]);
@@ -166,7 +194,7 @@ impl Bmp {
         }
         data.extend(vec![false; width * border_size]);
 
-        Bmp { data, width }
+        Ok(Bmp { data, width })
     }
 
     /// remove all the white border, if any
@@ -181,14 +209,13 @@ impl Bmp {
     }
 
     fn remove_one_white_border(&self) -> Result<Bmp, BmpError> {
-        if self.width > 2
-            && self
-                .data
-                .iter()
-                .enumerate()
-                .filter(|(i, _)| self.is_border(*i))
-                .all(|(_, e)| !*e)
-        {
+        let border_is_white = self
+            .data
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| self.is_border(*i))
+            .all(|(_, e)| !*e);
+        if self.width > 2 && border_is_white && self.height() > 2 {
             let data: Vec<bool> = self
                 .data
                 .iter()
@@ -226,14 +253,6 @@ impl BmpHeader {
     /// return the padding
     fn padding(&self) -> u32 {
         (4 - self.bytes_per_row() % 4) % 4
-    }
-}
-
-#[cfg(feature = "fuzz")]
-impl arbitrary::Arbitrary for Bmp {
-    fn arbitrary(u: &mut arbitrary::Unstructured<'_>) -> arbitrary::Result<Self> {
-        let vec = <Vec<u8>>::arbitrary(u)?;
-        Ok(Bmp::read(std::io::Cursor::new(vec)).map_err(|_| arbitrary::Error::IncorrectFormat)?)
     }
 }
 
@@ -323,7 +342,7 @@ mod test {
             width: 4,
         };
 
-        assert_eq!(data.mul(2), data_bigger);
+        assert_eq!(data.mul(2).unwrap(), data_bigger);
 
         let data = Bmp {
             data: vec![false, false, false, true],
@@ -338,7 +357,7 @@ mod test {
             width: 4,
         };
 
-        assert_eq!(data.mul(2), data_bigger);
+        assert_eq!(data.mul(2).unwrap(), data_bigger);
     }
 
     #[test]
@@ -357,7 +376,7 @@ mod test {
     #[test]
     fn test_mul_div() {
         let expected = random_bmp();
-        let mul = expected.mul(3);
+        let mul = expected.mul(3).unwrap();
         let div = mul.div(3).unwrap();
         assert_eq!(expected, div);
     }
@@ -374,7 +393,7 @@ mod test {
             width: 5,
         };
 
-        assert_eq!(data.add_white_border(2), data_bigger);
+        assert_eq!(data.add_white_border(2).unwrap(), data_bigger);
     }
 
     #[test]
@@ -386,7 +405,7 @@ mod test {
         let bytes_test1 = Bmp::read(&mut File::open("test_bmp/test1.bmp").unwrap()).unwrap();
         assert_eq!(data_test1, bytes_test1);
 
-        let bmp_test2 = data_test1.mul(3).add_white_border(12);
+        let bmp_test2 = data_test1.mul(3).unwrap().add_white_border(12).unwrap();
         bmp_test2
             .write(File::create("test_bmp/test2.bmp").unwrap())
             .unwrap();
@@ -474,7 +493,7 @@ mod test {
     #[test]
     fn test_div_with_greater_possible() {
         let bmp = random_bmp();
-        let mul = bmp.mul(4);
+        let mul = bmp.mul(4).unwrap();
         let div = mul.div_with_greater_possible(10);
         assert_eq!(div, bmp);
     }
