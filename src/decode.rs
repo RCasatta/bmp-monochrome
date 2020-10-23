@@ -162,11 +162,4 @@ mod test {
             _ => assert!(false),
         }
     }
-
-    #[test]
-    fn test_fuzz_max_height() {
-        let file = File::open("test_bmp/oom-eff4d586e829c853e4817eda99b21bb419920687").unwrap();
-        let header = BmpHeader::read(file).unwrap();
-        assert_eq!(header.height, 100_000_000);
-    }
 }

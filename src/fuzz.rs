@@ -19,31 +19,31 @@ impl arbitrary::Arbitrary for Bmp {
 }
 
 #[derive(Debug, Arbitrary)]
-/// Op
+/// Possible operations called on a Bmp, used for fuzz tests
 pub enum Op {
-    /// Mul
+    /// bmp.mul
     Mul(usize),
-    /// Div
+    /// bmp.div
     Div(usize),
-    /// Border
+    /// bmp.add_white_border
     Border(usize),
-    /// RemoveBorder
+    /// bmp.remove_white_border
     RemoveBorder,
-    /// Normalize
+    /// bmp.normalize
     Normalize,
 }
 
-/// ooo
+/// Used for fuzz testing creating a random Bmp and a random Op to apply to
 #[derive(Debug, Arbitrary)]
 pub struct BmpAndOp {
-    /// bmp
+    /// the Bmp
     pub bmp: Bmp,
-    /// ops
+    /// the operation to perform
     pub op: Op,
 }
 
 impl BmpAndOp {
-    /// apply operations on this bmp
+    /// apply operation on this bmp
     pub fn apply(self) {
         let bmp = self.bmp.clone();
         let _ = match self.op {
@@ -59,17 +59,14 @@ impl BmpAndOp {
 #[cfg(test)]
 mod test {
     use crate::fuzz::BmpAndOp;
-    use crate::Bmp;
     use arbitrary::Arbitrary;
 
     #[test]
     fn test_fuzz() {
-        let data = base64::decode("AAEAAC0=").unwrap();
-        dbg!(&data);
-        //let data = include_bytes!("../test_bmp/crash-091bf790e1922d7008ca0f9b3b19cb3106fad41b");
+        // found by fuzzing, fixed in 175bf8635f99b8c2b96489d713499798acdeae6b
+        let data = base64::decode("AQAAAAIAAAAAAAGYloH/////////fw==").unwrap();
         let mut unstructured = arbitrary::Unstructured::new(&data[..]);
         let data = BmpAndOp::arbitrary(&mut unstructured);
-        dbg!(&data);
         data.unwrap().apply();
     }
 }

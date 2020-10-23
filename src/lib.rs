@@ -191,14 +191,17 @@ impl Bmp {
 
     /// return a new Bmp with `border_size` pixels around
     pub fn add_white_border(&self, border_size: usize) -> Result<Bmp, BmpError> {
-        let width = self.width
-            + border_size
-                .checked_mul(2)
-                .ok_or_else(|| BmpError::Generic)?;
-        let height = self.height()
-            + border_size
-                .checked_mul(2)
-                .ok_or_else(|| BmpError::Generic)?;
+        let double_border = border_size
+            .checked_mul(2)
+            .ok_or_else(|| BmpError::Generic)?;
+        let width = self
+            .width
+            .checked_add(double_border)
+            .ok_or_else(|| BmpError::Generic)?;
+        let height = self
+            .height()
+            .checked_add(double_border)
+            .ok_or_else(|| BmpError::Generic)?;
         check_size(u32::try_from(width)?, u32::try_from(height)?)?;
         let mut data = Vec::with_capacity(width * height);
         data.extend(vec![false; width * border_size]);
