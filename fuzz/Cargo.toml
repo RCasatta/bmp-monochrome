@@ -13,7 +13,6 @@ cargo-fuzz = true
 libfuzzer-sys = "0.3"
 bmp-monochrome = { path = "..", features = ["fuzz"] }
 
-
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]
@@ -30,9 +29,8 @@ path = "fuzz_targets/fuzz_target_write.rs"
 test = false
 doc = false
 
-
 [[bin]]
-name = "fuzz_target_ops"
-path = "fuzz_targets/fuzz_target_ops.rs"
+name = "fuzz_target_op"
+path = "fuzz_targets/fuzz_target_op.rs"
 test = false
 doc = false

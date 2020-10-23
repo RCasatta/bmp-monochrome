@@ -19,8 +19,8 @@ impl arbitrary::Arbitrary for Bmp {
 }
 
 #[derive(Debug, Arbitrary)]
-/// Ops
-pub enum Ops {
+/// Op
+pub enum Op {
     /// Mul
     Mul(usize),
     /// Div
@@ -35,27 +35,41 @@ pub enum Ops {
 
 /// ooo
 #[derive(Debug, Arbitrary)]
-pub struct BmpAndOps {
+pub struct BmpAndOp {
     /// bmp
     pub bmp: Bmp,
     /// ops
-    pub ops: Vec<Ops>,
+    pub op: Op,
+}
+
+impl BmpAndOp {
+    /// apply operations on this bmp
+    pub fn apply(self) {
+        let bmp = self.bmp.clone();
+        let _ = match self.op {
+            Op::Mul(mul) => bmp.mul(mul),
+            Op::Div(div) => bmp.div(div),
+            Op::Border(border) => bmp.add_white_border(border),
+            Op::Normalize => Ok(bmp.normalize()),
+            Op::RemoveBorder => Ok(bmp.remove_white_border()),
+        };
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::fuzz::Ops;
+    use crate::fuzz::BmpAndOp;
     use crate::Bmp;
+    use arbitrary::Arbitrary;
 
     #[test]
     fn test_fuzz() {
-        use arbitrary::Arbitrary;
-        //let data = base64::decode("BQAAAAEAAAAAAAQAAAADAwAAAAAAAKysrKysrKysrKysrKz//////w==").unwrap();
-        let data = include_bytes!("../test_bmp/crash-dda9ce37b68d23a3bd61bf074ebb4c9fd24c91b7");
-        let mut unstructured = arbitrary::Unstructured::new(&data[..]);
-        let data: (Bmp, Vec<Ops>) = Arbitrary::arbitrary(&mut unstructured).unwrap();
+        let data = base64::decode("AAEAAC0=").unwrap();
         dbg!(&data);
-        let _a = data.0.remove_white_border();
-        //assert!(a.is_err());
+        //let data = include_bytes!("../test_bmp/crash-091bf790e1922d7008ca0f9b3b19cb3106fad41b");
+        let mut unstructured = arbitrary::Unstructured::new(&data[..]);
+        let data = BmpAndOp::arbitrary(&mut unstructured);
+        dbg!(&data);
+        data.unwrap().apply();
     }
 }

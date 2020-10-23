@@ -7,7 +7,7 @@
 #![deny(missing_docs)]
 
 use std::convert::TryFrom;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::io::Error;
 use std::num::TryFromIntError;
 
@@ -28,7 +28,7 @@ const HEADER_SIZE: u32 = 2 + 12 + 40 + COLOR_PALLET_SIZE;
 /// Last element of `data` is the lower-right pixel.
 /// Note in the serialized format the first element is the lower-left pixel
 /// see [BMP file format](https://en.wikipedia.org/wiki/BMP_file_format)
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct Bmp {
     data: Vec<bool>,
     width: usize,
@@ -52,6 +52,21 @@ pub enum BmpError {
 impl Display for BmpError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
+    }
+}
+
+impl Debug for Bmp {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.data.len() < 50 {
+            write!(f, "Bmp data={:?} width={:?}", self.data, self.width)
+        } else {
+            write!(
+                f,
+                "Bmp data.len()={} width={:?}",
+                self.data.len(),
+                self.width
+            )
+        }
     }
 }
 
@@ -262,7 +277,7 @@ fn check_size(width: u32, height: u32) -> Result<(), BmpError> {
     let width_height = width
         .checked_mul(height)
         .ok_or_else(|| BmpError::Size(width, height))?;
-    if width_height <= 100_000_000 && width > 0 && height > 0 {
+    if width_height <= 10_000_000 && width > 0 && height > 0 {
         Ok(())
     } else {
         Err(BmpError::Size(width, height))
