@@ -1,6 +1,6 @@
 //! fuzzing!
 
-use crate::{check_size, Bmp};
+use crate::{check_size, Bmp, BmpError};
 use arbitrary::Arbitrary;
 
 impl arbitrary::Arbitrary for Bmp {
@@ -35,38 +35,40 @@ pub enum Op {
 
 /// Used for fuzz testing creating a random Bmp and a random Op to apply to
 #[derive(Debug, Arbitrary)]
-pub struct BmpAndOp {
+pub struct BmpAndOps {
     /// the Bmp
     pub bmp: Bmp,
     /// the operation to perform
-    pub op: Op,
+    pub ops: Vec<Op>,
 }
 
-impl BmpAndOp {
+impl BmpAndOps {
     /// apply operation on this bmp
-    pub fn apply(self) {
-        let bmp = self.bmp.clone();
-        let _ = match self.op {
-            Op::Mul(mul) => bmp.mul(mul),
-            Op::Div(div) => bmp.div(div),
-            Op::Border(border) => bmp.add_white_border(border),
-            Op::Normalize => Ok(bmp.normalize()),
-            Op::RemoveBorder => Ok(bmp.remove_white_border()),
-        };
+    pub fn apply(self) -> Result<(), BmpError> {
+        let BmpAndOps { mut bmp, ops } = self;
+        for op in ops {
+            bmp = match op {
+                Op::Mul(mul) => bmp.mul(mul)?,
+                Op::Div(div) => bmp.div(div)?,
+                Op::Border(border) => bmp.add_white_border(border)?,
+                Op::Normalize => bmp.normalize(),
+                Op::RemoveBorder => bmp.remove_white_border(),
+            };
+        }
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::fuzz::BmpAndOp;
+    use crate::fuzz::BmpAndOps;
     use arbitrary::Arbitrary;
 
     #[test]
     fn test_fuzz() {
-        // found by fuzzing, fixed in 175bf8635f99b8c2b96489d713499798acdeae6b
-        let data = base64::decode("AQAAAAIAAAAAAAGYloH/////////fw==").unwrap();
-        let mut unstructured = arbitrary::Unstructured::new(&data[..]);
-        let data = BmpAndOp::arbitrary(&mut unstructured);
-        data.unwrap().apply();
+        let data = base64::decode("AQAAAAgAAAAKAQAAAAAAAAEIAAIAAAAKGgAAKQAaAAApAAAA").unwrap();
+        let unstructured = arbitrary::Unstructured::new(&data[..]);
+        let data = BmpAndOps::arbitrary_take_rest(unstructured);
+        let _ = data.unwrap().apply();
     }
 }

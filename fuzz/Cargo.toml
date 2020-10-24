@@ -30,7 +30,7 @@ test = false
 doc = false
 
 [[bin]]
-name = "fuzz_target_op"
-path = "fuzz_targets/fuzz_target_op.rs"
+name = "fuzz_target_ops"
+path = "fuzz_targets/fuzz_target_ops.rs"
 test = false
 doc = false
