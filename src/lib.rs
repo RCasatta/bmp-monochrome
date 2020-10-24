@@ -280,7 +280,7 @@ fn check_size(width: u32, height: u32) -> Result<(), BmpError> {
     let width_height = width
         .checked_mul(height)
         .ok_or_else(|| BmpError::Size(width, height))?;
-    if width_height <= 10_000_000 && width > 0 && height > 0 {
+    if width_height <= 1_000_000 && width > 0 && height > 0 {
         Ok(())
     } else {
         Err(BmpError::Size(width, height))
@@ -521,6 +521,12 @@ mod test {
         let bmp = Bmp::read(File::open("test_bmp/qr_not_normalized.bmp").unwrap()).unwrap();
         let bmp_normalized = Bmp::read(File::open("test_bmp/qr_normalized.bmp").unwrap()).unwrap();
         assert_eq!(bmp.normalize(), bmp_normalized);
+    }
+
+    #[test]
+    fn read_bmp_with_image() {
+        use image::GenericImageView;
+        let a = image::open("test_bmp/test1.bmp").unwrap();
     }
 
     fn random_bmp() -> Bmp {
