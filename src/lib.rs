@@ -280,7 +280,7 @@ fn check_size(width: u32, height: u32) -> Result<(), BmpError> {
     let width_height = width
         .checked_mul(height)
         .ok_or_else(|| BmpError::Size(width, height))?;
-    if width_height <= 10_000_000 && width > 0 && height > 0 {
+    if width_height <= 1_000_000 && width > 0 && height > 0 {
         Ok(())
     } else {
         Err(BmpError::Size(width, height))
@@ -413,6 +413,15 @@ mod test {
 
         assert_eq!(data.add_white_border(2).unwrap(), data_bigger);
     }
+    #[test]
+    fn test_rect() {
+        let rect = Bmp {
+            data: vec![false, false, false, false, false, true],
+            width: 3,
+        };
+        rect.write(File::create("test_bmp/rect.bmp").unwrap())
+            .unwrap();
+    }
 
     #[test]
     fn test_bmp() {
@@ -521,6 +530,13 @@ mod test {
         let bmp = Bmp::read(File::open("test_bmp/qr_not_normalized.bmp").unwrap()).unwrap();
         let bmp_normalized = Bmp::read(File::open("test_bmp/qr_normalized.bmp").unwrap()).unwrap();
         assert_eq!(bmp.normalize(), bmp_normalized);
+    }
+
+    #[test]
+    fn read_bmp_with_image() {
+        let bmp = Bmp::read(File::open("test_bmp/monochrome_image.bmp").unwrap()).unwrap();
+        //let bmp = Bmp::read(File::open("test_bmp/qr_normalized.bmp").unwrap()).unwrap();
+        bmp.check();
     }
 
     fn random_bmp() -> Bmp {

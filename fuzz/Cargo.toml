@@ -34,3 +34,9 @@ name = "fuzz_target_ops"
 path = "fuzz_targets/fuzz_target_ops.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_target_bmp_check"
+path = "fuzz_targets/fuzz_target_bmp_check.rs"
+test = false
+doc = false
