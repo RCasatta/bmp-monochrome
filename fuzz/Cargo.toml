@@ -18,25 +18,25 @@ bmp-monochrome = { path = "..", features = ["fuzz"] }
 members = ["."]
 
 [[bin]]
-name = "fuzz_target_read"
-path = "fuzz_targets/fuzz_target_read.rs"
+name = "read"
+path = "fuzz_targets/read.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_target_write"
-path = "fuzz_targets/fuzz_target_write.rs"
+name = "rt"
+path = "fuzz_targets/rt.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_target_ops"
-path = "fuzz_targets/fuzz_target_ops.rs"
+name = "ops"
+path = "fuzz_targets/ops.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_target_bmp_check"
-path = "fuzz_targets/fuzz_target_bmp_check.rs"
+name = "bmp_check"
+path = "fuzz_targets/bmp_check.rs"
 test = false
 doc = false

@@ -1,5 +1,6 @@
 use crate::bit::BitStreamReader;
 use crate::{check_size, Bmp, BmpError, BmpHeader, B, HEADER_SIZE, M};
+use std::convert::TryFrom;
 use std::io::{Cursor, Read};
 
 impl Bmp {
@@ -13,25 +14,24 @@ impl Bmp {
         let height = header.height;
         let padding = header.padding() as u8;
         let mut reader = BitStreamReader::new(&mut from);
-        let mut row_data = Vec::with_capacity(height as usize);
-        let mut width_data = Vec::with_capacity(width as usize);
+        let mut rows = Vec::with_capacity(height as usize);
+        let mut row = Vec::with_capacity(width as usize);
         for _ in 0..height as usize {
             for _ in 0..width as usize {
                 if reader.read(1)? == 1 {
-                    width_data.push(true);
+                    row.push(true);
                 } else {
-                    width_data.push(false);
+                    row.push(false);
                 }
             }
             reader.read((8 - (width % 8) as u8) % 8)?; // finish reading the full byte
             reader.read(padding * 8)?; // read the padding such that every row is multiple of 4 bytes
-            row_data.push(width_data.clone());
-            width_data.clear();
+            rows.push(row.clone());
+            row.clear();
         }
-        row_data.reverse();
-        let data = row_data.into_iter().flatten().collect();
-        let matrix = Bmp::new(data, width as usize)?;
-        Ok(matrix)
+        rows.reverse();
+
+        Ok(Bmp { rows })
     }
 }
 
@@ -72,6 +72,8 @@ impl BmpHeader {
             return Err(BmpError::Header);
         }
 
+        let width = u16::try_from(width)?;
+        let height = u16::try_from(height)?;
         check_size(width, height)?;
 
         Ok(BmpHeader { height, width })
@@ -134,32 +136,5 @@ mod test {
         let bmp_header = BmpHeader::read(file).unwrap();
         assert_eq!(2, bmp_header.width);
         assert_eq!(2, bmp_header.height);
-    }
-
-    #[test]
-    fn test_fuzz_size_too_big() {
-        let file = File::open("test_bmp/oom-f6080f661bd05569f2f68308feb0177311624c67").unwrap();
-        match Bmp::read(file) {
-            Err(BmpError::Size(a, b)) => assert_eq!((4294966802, 237), (a, b)),
-            _ => assert!(false),
-        }
-    }
-
-    #[test]
-    fn test_fuzz_width_and_height_not_0() {
-        let file = File::open("test_bmp/oom-6bacc6613ced424f3a6afaa18a02d18b64da4e7b").unwrap();
-        match Bmp::read(file) {
-            Err(BmpError::Size(a, b)) => assert_eq!((0, 268435502), (a, b)),
-            _ => assert!(false),
-        }
-    }
-
-    #[test]
-    fn test_fuzz_width_one_height_big() {
-        let file = File::open("test_bmp/oom-75d71108abf5cd21a267a343379395761a32f6d0").unwrap();
-        match Bmp::read(file) {
-            Err(BmpError::Size(a, b)) => assert_eq!((1, 251658240), (a, b)),
-            _ => assert!(false),
-        }
     }
 }

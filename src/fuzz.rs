@@ -7,15 +7,18 @@ use std::io::Cursor;
 
 impl arbitrary::Arbitrary for Bmp {
     fn arbitrary(u: &mut arbitrary::Unstructured<'_>) -> arbitrary::Result<Self> {
-        let width = u32::arbitrary(u)?;
-        let height = u32::arbitrary(u)?;
+        let width = u16::arbitrary(u)?;
+        let height = u16::arbitrary(u)?;
         check_size(width, height).map_err(|_| arbitrary::Error::IncorrectFormat)?;
-        let total = (width * height) as usize;
-        let mut data = Vec::with_capacity(total);
-        for _ in 0..total {
-            data.push(bool::arbitrary(u)?);
+        let mut rows = Vec::with_capacity(height as usize);
+        for _ in 0..height {
+            let mut row = Vec::with_capacity(width as usize);
+            for _ in 0..width {
+                row.push(bool::arbitrary(u)?);
+            }
+            rows.push(row);
         }
-        let bmp = Bmp::new(data, width as usize).unwrap();
+        let bmp = Bmp::new(rows).unwrap();
         Ok(bmp)
     }
 }
@@ -24,11 +27,11 @@ impl arbitrary::Arbitrary for Bmp {
 /// Possible operations called on a Bmp, used for fuzz tests
 pub enum Op {
     /// bmp.mul
-    Mul(usize),
+    Mul(u8),
     /// bmp.div
-    Div(usize),
+    Div(u8),
     /// bmp.add_white_border
-    Border(usize),
+    Border(u8),
     /// bmp.remove_white_border
     RemoveBorder,
     /// bmp.normalize
@@ -47,9 +50,6 @@ pub struct BmpAndOps {
 impl Bmp {
     /// check that image crate loads the same pixel
     pub fn check(&self) {
-        if self.width > 10000 || self.height() > 10000 {
-            return;
-        }
         let mut cursor = Cursor::new(vec![]);
         self.write(&mut cursor).unwrap();
         cursor.set_position(0);
@@ -57,49 +57,32 @@ impl Bmp {
             image::load_from_memory_with_format(&cursor.into_inner(), ImageFormat::Bmp).unwrap();
 
         let (width, height) = image.dimensions();
-        assert_eq!(width, self.width as u32);
+        assert_eq!(width, self.width() as u32);
         assert_eq!(height, self.height() as u32);
         assert_eq!(to_test_string(&image), self.to_test_string());
     }
+}
 
-    fn to_test_string(&self) -> String {
-        let mut s = String::new();
-        for i in 0..self.width {
-            for j in 0..self.height() {
-                if self.get(j, i) {
-                    s.push('#');
-                } else {
-                    s.push('.');
-                }
-            }
-            if i < self.width - 1 {
-                s.push('\n');
-            }
-        }
-        s
+fn rgba_to_bool(pixel: Rgba<u8>) -> bool {
+    match pixel {
+        Rgba([0, 0, 0, 255]) => true,
+        _ => false,
     }
 }
 
 fn to_test_string(image: &DynamicImage) -> String {
-    let (width, height) = image.dimensions();
     let mut s = String::new();
-    for i in (0..width) {
-        for j in (0..height) {
-            match image.get_pixel(i, j) {
-                Rgba([255, 255, 255, 255]) => {
-                    s.push('.');
-                }
-                Rgba([0, 0, 0, 255]) => {
-                    s.push('#');
-                }
-                _ => assert!(false),
-            }
+    for (i, j, pixel) in image.pixels() {
+        if i == 0 && j != 0 {
+            s.push('\n');
         }
-
-        s.push('\n');
+        if rgba_to_bool(pixel) {
+            s.push('#');
+        } else {
+            s.push('.');
+        }
     }
-
-    s.trim().to_string()
+    s
 }
 
 impl BmpAndOps {
@@ -132,6 +115,7 @@ mod test {
         bmp.check();
     }
 
+    /*
     #[test]
     fn test_bmp_check_fuzz() {
         let data = base64::decode("PjYAADY=").unwrap();
@@ -140,11 +124,13 @@ mod test {
         dbg!(&data);
         data.check();
     }
+    */
 
     #[test]
     fn test_bmp_and_ops() {
         //let data = base64::decode("AQAAAAEAAAACQIAAABUFAAAAAAAAlZ2dnQAAAAAAAAA0").unwrap();
-        let data = base64::decode("AQAAAAgAAAAAAAAAAAAAAAAACgoAAAAKGgAAAAAA").unwrap();
+        //let data = base64::decode("AwABAAAAAAAAAAEl9v8A//8A").unwrap();
+        let data = include_bytes!("../fuzz/artifacts/ops/oom-1c626462ce8bc20e025a4fd7f0b6e2e513dac895");
         let unstructured = arbitrary::Unstructured::new(&data[..]);
         let data = BmpAndOps::arbitrary_take_rest(unstructured).unwrap();
         dbg!(&data);

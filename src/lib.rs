@@ -23,15 +23,16 @@ const M: u8 = 77;
 const COLOR_PALLET_SIZE: u32 = 2 * 4; // 2 colors each 4 bytes
 const HEADER_SIZE: u32 = 2 + 12 + 40 + COLOR_PALLET_SIZE;
 
-/// The `Bmp` struct contains the data as a vector of boolean, each representing a pixel.
-/// In `data` the first element is the upper-left pixel, then proceed in the row.
-/// Last element of `data` is the lower-right pixel.
+/// The `Bmp` struct contains the data as a vector of vectors of booleans.
+/// Each boolean represent a pixel.
+/// In `rows` the first element is the upper row, inside the first vector there are the pixel
+/// from left to right, thus `rows[0][0]` is the upper-left element.
+/// Max len of the vetors (both rows and colums) is [u16::MAX]`
 /// Note in the serialized format the first element is the lower-left pixel
 /// see [BMP file format](https://en.wikipedia.org/wiki/BMP_file_format)
 #[derive(PartialEq, Eq, Clone)]
 pub struct Bmp {
-    data: Vec<bool>,
-    width: usize,
+    rows: Vec<Vec<bool>>,
 }
 
 /// Internal error struct
@@ -46,7 +47,7 @@ pub enum BmpError {
     /// Relative to the data
     Data,
     /// Relative to the size
-    Size(u32, u32),
+    Size(u16, u16),
 }
 
 impl Display for BmpError {
@@ -57,16 +58,7 @@ impl Display for BmpError {
 
 impl Debug for Bmp {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.data.len() < 50 {
-            write!(f, "Bmp data={:?} width={:?}", self.data, self.width)
-        } else {
-            write!(
-                f,
-                "Bmp data.len()={} width={:?}",
-                self.data.len(),
-                self.width
-            )
-        }
+        write!(f, "Bmp width={} height={}", self.width(), self.height(),)
     }
 }
 
@@ -80,101 +72,104 @@ impl From<std::num::TryFromIntError> for BmpError {
 
 #[derive(Debug)]
 struct BmpHeader {
-    height: u32,
-    width: u32,
+    height: u16,
+    width: u16,
 }
 
 impl Bmp {
-    /// Creates a new DataMatrix, failing if `data` is empty or its length not a multiple of `width`
-    pub fn new(data: Vec<bool>, width: usize) -> Result<Bmp, BmpError> {
-        if data.is_empty() || width == 0 || data.len() % width != 0 {
+    /// Creates a new Bmp, failing if `rows` is empty or it's first element is empty
+    /// or it's elements has different len
+    pub fn new(rows: Vec<Vec<bool>>) -> Result<Bmp, BmpError> {
+        if rows.is_empty() || rows[0].is_empty() || !rows.iter().all(|e| e.len() == rows[0].len()) {
             Err(BmpError::Data)
         } else {
-            let height = data.len() / width;
-            check_size(u32::try_from(width)?, u32::try_from(height)?)?;
-            Ok(Bmp { data, width })
+            check_size(u16::try_from(rows.len())?, u16::try_from(rows[0].len())?)?;
+            Ok(Bmp { rows })
         }
     }
 
     /// return the Bmp height in pixel
-    pub fn height(&self) -> usize {
-        self.data.len() / self.width
+    pub fn height(&self) -> u16 {
+        self.rows.len() as u16
     }
 
     /// return the Bmp width in pixel
-    pub fn width(&self) -> usize {
-        self.width
+    pub fn width(&self) -> u16 {
+        self.rows[0].len() as u16
     }
 
     /// return the pixel situated at (i,j), where (0,0) is the upper-left corner
-    /// could panic if (i * self.height() + j) >= self.data.len()
-    pub fn pixel(&self, i: usize, j: usize) -> bool {
-        let h = self.height() - i - 1;
-        self.data[h * self.width + j]
+    /// could panic if i > self.height() || j > self.width()
+    pub fn get(&self, i: u16, j: u16) -> bool {
+        self.rows[i as usize][j as usize]
     }
 
-    /// return the pixel situated at (x,y) where (0,0) is the lower-left corner
-    /// could panic if (i * self.height() + j) >= self.data.len()
-    pub fn get(&self, x: usize, y: usize) -> bool {
-        self.data[x * self.width + y]
-    }
-
-    /// return a new Bmp where every pixel is multiplied by `mul`
-    pub fn mul(&self, mul: usize) -> Result<Bmp, BmpError> {
+    /// return a new Bmp where every pixel is multiplied by `mul`, erroring if mul is 0 or 1 or the
+    /// resulting image would be bigger than limits enforced by [crate::check_size]
+    pub fn mul(&self, mul: u8) -> Result<Bmp, BmpError> {
+        if mul <= 1 {
+            return Err(BmpError::Generic);
+        }
+        let mul = mul as u16;
         let new_width = self
-            .width
+            .width()
             .checked_mul(mul)
             .ok_or_else(|| BmpError::Generic)?;
         let new_height = self
             .height()
             .checked_mul(mul)
             .ok_or_else(|| BmpError::Generic)?;
-        check_size(u32::try_from(new_width)?, u32::try_from(new_height)?)?;
-        let total = new_width * new_height;
-        let mut data = Vec::with_capacity(total);
+        check_size(new_width, new_height)?;
+        let mut rows = Vec::with_capacity(new_height as usize);
 
+        let mul = mul as usize;
         for i in 0..self.height() {
-            let mut row = Vec::with_capacity(new_width);
-            for j in 0..self.width {
-                for _ in 0..mul {
-                    row.push(self.get(i, j));
-                }
+            let mut row = Vec::with_capacity(new_width as usize);
+            for j in 0..self.width() {
+                row.extend(vec![self.get(i, j); mul]);
             }
-            for _ in 0..mul {
-                data.extend(row.clone());
-            }
+            rows.extend(vec![row; mul]);
         }
 
-        let width = new_width;
-        Ok(Bmp { data, width })
+        Ok(Bmp { rows })
     }
 
     /// return a new Bmp where every square is divided by `div`
     /// if all the square is not of the same color it errors
-    pub fn div(&self, div: usize) -> Result<Bmp, BmpError> {
+    pub fn div(&self, div: u8) -> Result<Bmp, BmpError> {
         if div <= 1 {
             return Err(BmpError::Generic);
         }
-        let new_width = self.width / div;
-        if new_width == 0 {
+        let div = div as u16;
+        let new_height = self.height() / div;
+        let new_width = self.width() / div;
+        if new_height == 0 || new_width == 0 || self.height() % div != 0 || self.width() % div != 0
+        {
             return Err(BmpError::Generic);
         }
-        let mut new_data = vec![];
+        let mut new_rows = vec![];
 
-        for (i, chunk) in self.data.chunks(div).enumerate() {
-            let row = i / new_width;
-            if chunk.iter().all(|e| chunk[0] == *e) {
-                if row % div == 0 {
-                    new_data.push(chunk[0]);
+        let div = div as usize;
+        for rows in self.rows.chunks(div) {
+            let mut new_row = vec![];
+            for j in 0..div - 1 {
+                if rows[j] != rows[j + 1] {
+                    return Err(BmpError::Generic);
                 }
-            } else {
-                return Err(BmpError::Generic);
             }
+            for cols in rows[0].chunks(div) {
+                if cols.iter().all(|e| cols[0] == *e) {
+                    new_row.push(cols[0]);
+                } else {
+                    return Err(BmpError::Generic);
+                }
+            }
+            new_rows.push(new_row);
         }
-        Bmp::new(new_data, new_width)
+        Ok(Bmp { rows: new_rows })
     }
 
-    fn div_with_greater_possible(&self, greater_start: usize) -> Bmp {
+    fn div_with_greater_possible(&self, greater_start: u8) -> Bmp {
         for i in (2..greater_start).rev() {
             if let Ok(bmp) = self.div(i) {
                 return bmp;
@@ -190,29 +185,30 @@ impl Bmp {
     }
 
     /// return a new Bmp with `border_size` pixels around
-    pub fn add_white_border(&self, border_size: usize) -> Result<Bmp, BmpError> {
-        let double_border = border_size
-            .checked_mul(2)
-            .ok_or_else(|| BmpError::Generic)?;
+    pub fn add_white_border(&self, border_size: u8) -> Result<Bmp, BmpError> {
+        let double_border = border_size as u16 * 2;
         let width = self
-            .width
+            .width()
             .checked_add(double_border)
             .ok_or_else(|| BmpError::Generic)?;
         let height = self
             .height()
             .checked_add(double_border)
             .ok_or_else(|| BmpError::Generic)?;
-        check_size(u32::try_from(width)?, u32::try_from(height)?)?;
-        let mut data = Vec::with_capacity(width * height);
-        data.extend(vec![false; width * border_size]);
-        for vec in self.data.chunks(self.width) {
-            data.extend(vec![false; border_size]);
-            data.extend(vec);
-            data.extend(vec![false; border_size]);
+        check_size(width, height)?;
+        let mut new_rows = Vec::with_capacity(height as usize);
+        let border_size = border_size as usize;
+        new_rows.extend(vec![vec![false; width as usize]; border_size]);
+        for row in self.rows.iter() {
+            let mut new_row = Vec::with_capacity(width as usize);
+            new_row.extend(vec![false; border_size]);
+            new_row.extend(row);
+            new_row.extend(vec![false; border_size]);
+            new_rows.push(new_row);
         }
-        data.extend(vec![false; width * border_size]);
+        new_rows.extend(vec![vec![false; width as usize]; border_size]);
 
-        Ok(Bmp { data, width })
+        Ok(Bmp { rows: new_rows })
     }
 
     /// remove all the white border, if any
@@ -227,32 +223,40 @@ impl Bmp {
     }
 
     fn remove_one_white_border(&self) -> Result<Bmp, BmpError> {
-        let border_is_white = self
-            .data
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| self.is_border(*i))
-            .all(|(_, e)| !*e);
-        if self.width > 2 && border_is_white && self.height() > 2 {
-            let data: Vec<bool> = self
-                .data
-                .iter()
-                .enumerate()
-                .filter_map(|(i, e)| if self.is_border(i) { None } else { Some(*e) })
-                .collect();
-            Ok(Bmp::new(data, self.width - 2).unwrap())
+        if self.width() <= 2 || self.height() <= 2 {
+            return Err(BmpError::Generic);
+        }
+        let new_width = self.width() as usize - 2;
+        let new_height = self.height() as usize - 2;
+        let mut new_rows = vec![];
+        if self.rows[0].iter().all(|e| !*e)
+            && self.rows.last().unwrap().iter().all(|e| !*e)
+            && self.rows.iter().all(|r| !r[0])
+            && self.rows.iter().all(|r| !*r.last().unwrap())
+        {
+            for row in &self.rows[1..=new_height] {
+                new_rows.push(row[1..=new_width].to_vec())
+            }
+            Ok(Bmp { rows: new_rows })
         } else {
             Err(BmpError::Generic)
         }
     }
 
-    fn is_border(&self, i: usize) -> bool {
-        let max_h = self.height();
-        let max_w = self.width;
-        let h = i / max_w;
-        let w = i % max_w;
-
-        h == 0 || h == max_h - 1 || w == 0 || w == max_w - 1
+    #[allow(dead_code)]
+    fn to_test_string(&self) -> String {
+        let mut s = String::new();
+        for row in self.rows.iter() {
+            for el in row.iter() {
+                if *el {
+                    s.push('#');
+                } else {
+                    s.push('.');
+                }
+            }
+            s.push('\n');
+        }
+        s.trim_end().to_string()
     }
 }
 
@@ -265,7 +269,7 @@ impl From<std::io::Error> for BmpError {
 impl BmpHeader {
     /// return bytes needed for `width` bits
     fn bytes_per_row(&self) -> u32 {
-        (self.width + 7) / 8
+        (self.width as u32 + 7) / 8
     }
 
     /// return the padding
@@ -274,14 +278,12 @@ impl BmpHeader {
     }
 }
 
-/// arbitrary limit width * height < 100 million
+/// arbitrary limit width * height < 1 million
 /// height and width must be > 0
-fn check_size(width: u32, height: u32) -> Result<(), BmpError> {
-    let width_height = width
-        .checked_mul(height)
-        .ok_or_else(|| BmpError::Size(width, height))?;
+fn check_size(width: u16, height: u16) -> Result<u32, BmpError> {
+    let width_height = width as u32 * height as u32;
     if width_height <= 1_000_000 && width > 0 && height > 0 {
-        Ok(())
+        Ok(width_height)
     } else {
         Err(BmpError::Size(width, height))
     }
@@ -296,14 +298,10 @@ mod test {
 
     #[test]
     fn test_data_matrix() {
-        assert!(Bmp::new(vec![], 1).is_err());
-        assert!(Bmp::new(vec![true], 0).is_err());
-        assert!(Bmp::new(vec![true], 1).is_ok());
-        assert!(Bmp::new(vec![true], 2).is_err());
-        assert!(Bmp::new(vec![true, false], 2).is_ok());
-        assert!(Bmp::new(vec![true, false], 1).is_ok());
-        assert!(Bmp::new(vec![true, false, true], 1).is_ok());
-        assert!(Bmp::new(vec![true, false, true], 2).is_err());
+        assert!(Bmp::new(vec![]).is_err());
+        assert!(Bmp::new(vec![vec![true]]).is_ok());
+        assert!(Bmp::new(vec![vec![true], vec![true]]).is_ok());
+        assert!(Bmp::new(vec![vec![true], vec![true, false]]).is_err());
     }
 
     #[test]
@@ -347,47 +345,41 @@ mod test {
 
     #[test]
     fn test_mul() {
-        let data = Bmp {
-            data: vec![false, true, false, true],
-            width: 2,
-        };
+        let data = Bmp::new(vec![vec![false, true], vec![false, true]]).unwrap();
 
-        let data_bigger = Bmp {
-            data: vec![
-                false, false, true, true, false, false, true, true, false, false, true, true,
-                false, false, true, true,
-            ],
-            width: 4,
-        };
+        let data_bigger = Bmp::new(vec![
+            vec![false, false, true, true],
+            vec![false, false, true, true],
+            vec![false, false, true, true],
+            vec![false, false, true, true],
+        ])
+        .unwrap();
 
         assert_eq!(data.mul(2).unwrap(), data_bigger);
 
-        let data = Bmp {
-            data: vec![false, false, false, true],
-            width: 2,
-        };
+        let data = Bmp::new(vec![vec![false, true], vec![false, false]]).unwrap();
 
-        let data_bigger = Bmp {
-            data: vec![
-                false, false, false, false, false, false, false, false, false, false, true, true,
-                false, false, true, true,
-            ],
-            width: 4,
-        };
+        let data_bigger = Bmp::new(vec![
+            vec![false, false, true, true],
+            vec![false, false, true, true],
+            vec![false, false, false, false],
+            vec![false, false, false, false],
+        ])
+        .unwrap();
 
         assert_eq!(data.mul(2).unwrap(), data_bigger);
     }
 
     #[test]
     fn test_div() {
-        let data = Bmp {
-            data: vec![false, false, true, true, false, false, true, true],
-            width: 4,
-        };
-        let expected = Bmp {
-            data: vec![false, true],
-            width: 2,
-        };
+        let data = Bmp::new(vec![
+            vec![false, false, true, true],
+            vec![false, false, true, true],
+            vec![false, false, true, true],
+            vec![false, false, true, true],
+        ])
+        .unwrap();
+        let expected = Bmp::new(vec![vec![false, true], vec![false, true]]).unwrap();
         assert_eq!(expected, data.div(2).unwrap());
     }
 
@@ -401,50 +393,40 @@ mod test {
 
     #[test]
     fn test_add_white_border() {
-        let data = Bmp {
-            data: vec![false],
-            width: 1,
-        };
-
-        let data_bigger = Bmp {
-            data: vec![false; 25],
-            width: 5,
-        };
+        let data = Bmp::new(vec![vec![false]]).unwrap();
+        let data_bigger = Bmp::new(vec![vec![false; 5]; 5]).unwrap();
 
         assert_eq!(data.add_white_border(2).unwrap(), data_bigger);
     }
+
     #[test]
     fn test_rect() {
-        let rect = Bmp {
-            data: vec![false, false, false, false, false, true],
-            width: 3,
-        };
+        let rect = Bmp::new(vec![
+            vec![false, false],
+            vec![false, false],
+            vec![false, true],
+        ])
+        .unwrap();
         rect.write(File::create("test_bmp/rect.bmp").unwrap())
             .unwrap();
     }
 
     #[test]
     fn test_bmp() {
-        let data_test1 = Bmp {
-            data: vec![false, true, true, false],
-            width: 2,
-        };
+        let data_test1 = Bmp::new(vec![vec![false, true], vec![true, false]]).unwrap();
         let bytes_test1 = Bmp::read(&mut File::open("test_bmp/test1.bmp").unwrap()).unwrap();
         assert_eq!(data_test1, bytes_test1);
 
         let bmp_test2 = data_test1.mul(3).unwrap().add_white_border(12).unwrap();
-        bmp_test2
-            .write(File::create("test_bmp/test2.bmp").unwrap())
-            .unwrap();
         let bytes_test2 = Bmp::read(&mut File::open("test_bmp/test2.bmp").unwrap()).unwrap();
-        assert_eq!(bmp_test2, bytes_test2);
+        assert_eq!(bmp_test2.to_test_string(), bytes_test2.to_test_string());
     }
 
     #[test]
     fn test_monochrome_image() {
         // taken from https://github.com/pertbanking/bitmap-monochrome/blob/master/monochrome_image.bmp
-        let expected = Bmp {
-            data: vec![
+        let expected = Bmp::new(
+            vec![
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
                 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
                 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1,
@@ -458,11 +440,12 @@ mod test {
                 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             ]
-            .iter()
-            .map(|e| *e != 0)
+            .chunks(18)
+            .map(|r| r.iter().map(|e| *e != 0).collect())
             .collect(),
-            width: 18,
-        };
+        )
+        .unwrap();
+
         let bmp = Bmp::read(File::open("test_bmp/monochrome_image.bmp").unwrap()).unwrap();
         assert_eq!(expected, bmp);
     }
@@ -478,48 +461,25 @@ mod test {
     }
 
     #[test]
-    fn test_get_and_pixel() {
+    fn test_get() {
         let file = File::open("test_bmp/test1.bmp").unwrap();
         let bmp = Bmp::read(file).unwrap();
         assert!(!bmp.get(0, 0), "lower-left is not dark");
-        assert!(bmp.pixel(0, 0), "upper-left is not white");
-    }
-
-    #[test]
-    fn test_is_border() {
-        let bmp = Bmp {
-            data: vec![false; 9],
-            width: 3,
-        };
-        for i in 0..9 {
-            assert_eq!(bmp.is_border(i), i != 4);
-        }
-
-        let bmp = Bmp {
-            data: vec![false; 16],
-            width: 4,
-        };
-        for i in 0..16 {
-            assert_eq!(bmp.is_border(i), ![5, 6, 9, 10].contains(&i));
-        }
     }
 
     #[test]
     fn test_remove_white_border() {
-        let bmp = Bmp {
-            data: vec![false; 25],
-            width: 5,
-        };
-        let expected = Bmp {
-            data: vec![false; 1],
-            width: 1,
-        };
-        assert_eq!(expected, bmp.remove_white_border());
+        let bmp5 = Bmp::new(vec![vec![false; 5]; 5]).unwrap();
+        let bmp3 = Bmp::new(vec![vec![false; 3]; 3]).unwrap();
+        assert_eq!(bmp3, bmp5.remove_one_white_border().unwrap());
+        let bmp1 = Bmp::new(vec![vec![false]]).unwrap();
+        assert_eq!(bmp1, bmp3.remove_one_white_border().unwrap());
+        assert_eq!(bmp1, bmp5.remove_white_border());
     }
 
     #[test]
     fn test_div_with_greater_possible() {
-        let bmp = random_bmp();
+        let bmp = Bmp::read(File::open("test_bmp/monochrome_image.bmp").unwrap()).unwrap();
         let mul = bmp.mul(4).unwrap();
         let div = mul.div_with_greater_possible(10);
         assert_eq!(div, bmp);
@@ -532,18 +492,15 @@ mod test {
         assert_eq!(bmp.normalize(), bmp_normalized);
     }
 
-    #[test]
-    fn read_bmp_with_image() {
-        let bmp = Bmp::read(File::open("test_bmp/monochrome_image.bmp").unwrap()).unwrap();
-        //let bmp = Bmp::read(File::open("test_bmp/qr_normalized.bmp").unwrap()).unwrap();
-        bmp.check();
-    }
-
     fn random_bmp() -> Bmp {
         let mut rng = rand::thread_rng();
-        let width = rng.gen_range(1, 20);
-        let height = rng.gen_range(1, 20);
-        let data: Vec<bool> = (0..width * height).map(|_| rng.gen()).collect();
-        Bmp::new(data, width).unwrap()
+        let width: u16 = rng.gen_range(1, 20);
+        let height: u16 = rng.gen_range(1, 20);
+        let mut data = vec![];
+        for i in 0..height {
+            let row: Vec<bool> = (0..width).map(|_| rng.gen()).collect();
+            data.push(row);
+        }
+        Bmp::new(data).unwrap()
     }
 }
