@@ -130,7 +130,8 @@ mod test {
     fn test_bmp_and_ops() {
         //let data = base64::decode("AQAAAAEAAAACQIAAABUFAAAAAAAAlZ2dnQAAAAAAAAA0").unwrap();
         //let data = base64::decode("AwABAAAAAAAAAAEl9v8A//8A").unwrap();
-        let data = include_bytes!("../fuzz/artifacts/ops/oom-1c626462ce8bc20e025a4fd7f0b6e2e513dac895");
+        let data =
+            include_bytes!("../fuzz/artifacts/ops/oom-1c626462ce8bc20e025a4fd7f0b6e2e513dac895");
         let unstructured = arbitrary::Unstructured::new(&data[..]);
         let data = BmpAndOps::arbitrary_take_rest(unstructured).unwrap();
         dbg!(&data);
