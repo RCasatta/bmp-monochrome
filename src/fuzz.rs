@@ -1,7 +1,7 @@
 //! fuzzing!
 
 use crate::{check_size, Bmp, BmpError};
-use arbitrary::Arbitrary;
+use arbitrary::{Arbitrary, Unstructured};
 use image::{DynamicImage, GenericImageView, ImageFormat, Rgba};
 use std::io::Cursor;
 
@@ -39,13 +39,27 @@ pub enum Op {
 }
 
 /// Used for fuzz testing creating a random Bmp and a random Op to apply to
-#[derive(Debug, Arbitrary)]
+#[derive(Debug)]
 pub struct BmpAndOps {
     /// the Bmp
     pub bmp: Bmp,
     /// the operation to perform
     pub ops: Vec<Op>,
 }
+
+impl arbitrary::Arbitrary for BmpAndOps {
+    fn arbitrary(u: &mut Unstructured<'_>) -> arbitrary::Result<Self> {
+        let bmp = Bmp::arbitrary(u)?;
+        let ops = <Vec<Op>>::arbitrary(u)?;
+        if ops.len() > 4 {
+            // Don't want too many ops to apply for oom reasons
+            Err(arbitrary::Error::IncorrectFormat)
+        } else {
+            Ok(BmpAndOps {bmp, ops})
+        }
+    }
+}
+
 
 impl Bmp {
     /// check that image crate loads the same pixel
