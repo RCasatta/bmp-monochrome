@@ -1,7 +1,7 @@
 //! fuzzing!
 
 use crate::{check_size, Bmp, BmpError};
-use arbitrary::{Arbitrary, Unstructured};
+use arbitrary::Arbitrary;
 use image::{DynamicImage, GenericImageView, ImageFormat, Rgba};
 use std::io::Cursor;
 
@@ -39,27 +39,13 @@ pub enum Op {
 }
 
 /// Used for fuzz testing creating a random Bmp and a random Op to apply to
-#[derive(Debug)]
+#[derive(Debug, Arbitrary)]
 pub struct BmpAndOps {
     /// the Bmp
     pub bmp: Bmp,
-    /// the operation to perform
-    pub ops: Vec<Op>,
+    /// the 4 operations to perform
+    pub ops: [Op; 4],
 }
-
-impl arbitrary::Arbitrary for BmpAndOps {
-    fn arbitrary(u: &mut Unstructured<'_>) -> arbitrary::Result<Self> {
-        let bmp = Bmp::arbitrary(u)?;
-        let ops = <Vec<Op>>::arbitrary(u)?;
-        if ops.len() > 4 {
-            // Don't want too many ops to apply for oom reasons
-            Err(arbitrary::Error::IncorrectFormat)
-        } else {
-            Ok(BmpAndOps {bmp, ops})
-        }
-    }
-}
-
 
 impl Bmp {
     /// check that image crate loads the same pixel
@@ -103,11 +89,11 @@ impl BmpAndOps {
     /// apply operation on this bmp
     pub fn apply(self) -> Result<(), BmpError> {
         let BmpAndOps { mut bmp, ops } = self;
-        for op in ops {
+        for op in ops.iter() {
             bmp = match op {
-                Op::Mul(mul) => bmp.mul(mul)?,
-                Op::Div(div) => bmp.div(div)?,
-                Op::Border(border) => bmp.add_white_border(border)?,
+                Op::Mul(mul) => bmp.mul(*mul)?,
+                Op::Div(div) => bmp.div(*div)?,
+                Op::Border(border) => bmp.add_white_border(*border)?,
                 Op::Normalize => bmp.normalize(),
                 Op::RemoveBorder => bmp.remove_white_border(),
             };
