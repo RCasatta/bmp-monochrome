@@ -497,7 +497,7 @@ mod test {
         let width: u16 = rng.gen_range(1, 20);
         let height: u16 = rng.gen_range(1, 20);
         let mut data = vec![];
-        for i in 0..height {
+        for _ in 0..height {
             let row: Vec<bool> = (0..width).map(|_| rng.gen()).collect();
             data.push(row);
         }

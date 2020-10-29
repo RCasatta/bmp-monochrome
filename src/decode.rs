@@ -112,7 +112,7 @@ trait ReadLE {
 #[cfg(test)]
 mod test {
     use crate::decode::ReadLE;
-    use crate::{Bmp, BmpError, BmpHeader};
+    use crate::BmpHeader;
     use std::fs::File;
     use std::io::Cursor;
 

@@ -104,14 +104,10 @@ impl BmpAndOps {
 
 #[cfg(test)]
 mod test {
-    use crate::fuzz::BmpAndOps;
-    use crate::Bmp;
-    use arbitrary::Arbitrary;
-    use std::fs::File;
 
     #[test]
     fn test_bmp_check() {
-        let bmp = Bmp::read(File::open("test_bmp/rect.bmp").unwrap()).unwrap();
+        let bmp = crate::Bmp::read(std::fs::File::open("test_bmp/rect.bmp").unwrap()).unwrap();
         bmp.check();
     }
 
@@ -126,8 +122,10 @@ mod test {
     }
     */
 
+    /*
     #[test]
     fn test_bmp_and_ops() {
+        use crate::fuzz::BmpAndOps;
         //let data = base64::decode("AQAAAAEAAAACQIAAABUFAAAAAAAAlZ2dnQAAAAAAAAA0").unwrap();
         //let data = base64::decode("AwABAAAAAAAAAAEl9v8A//8A").unwrap();
         let data =
@@ -137,4 +135,5 @@ mod test {
         dbg!(&data);
         let _ = data.apply();
     }
+    */
 }

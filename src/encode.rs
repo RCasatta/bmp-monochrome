@@ -67,7 +67,6 @@ mod test {
     use crate::Bmp;
     use std::io::Cursor;
 
-    /*
     #[test]
     fn test_width8() {
         // from issue https://github.com/RCasatta/bmp-monochrome/issues/2
@@ -77,13 +76,13 @@ mod test {
             false, false, true, true, false, false, false, false, false, false, true, true, true,
             true, true, true, true, true, true,
         ];
+        let vec: Vec<Vec<bool>> = data.chunks(8).map(|c| c.to_vec()).collect();
 
-        let bmp = Bmp::new(data.clone(), 8).unwrap();
+        let bmp_created = Bmp::new(vec).unwrap();
         let mut buffer = Cursor::new(vec![]);
-        bmp.write(&mut buffer).unwrap();
+        bmp_created.write(&mut buffer).unwrap();
         buffer.set_position(0);
         let bmp = Bmp::read(buffer).unwrap();
-        assert_eq!(data, bmp.data);
+        assert_eq!(bmp_created, bmp);
     }
-    */
 }
