@@ -46,3 +46,19 @@ jobs:
         with:
           command: run
           args:  --example bmp
+
+  fuzz:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        target: [bmp_check, ops, read, rt]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          profile: minimal
+      - run: cargo install cargo-fuzz
+      - name: fuzz
+        run: cargo +nightly fuzz run ${{ matrix.target }} -- -max_total_time=60
