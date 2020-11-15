@@ -1,5 +1,7 @@
 # bmp-monochrome
 
+[![crates.io](https://img.shields.io/crates/v/bmp-monochrome.svg)](https://crates.io/crates/bmp-monochrome)
+
 Encode and decode monochromatic bitmaps without additional dependencies, useful for QR codes.
 
 ## Example
