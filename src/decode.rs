@@ -77,7 +77,11 @@ impl BmpHeader {
         let height = u16::try_from(height)?;
         check_size(width, height)?;
 
-        Ok(BmpHeader { height, width, bg_is_zero })
+        Ok(BmpHeader {
+            height,
+            width,
+            bg_is_zero,
+        })
     }
 }
 

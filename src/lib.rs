@@ -443,9 +443,11 @@ mod test {
 
         let bmp_test2 = data_test1.mul(3).unwrap().add_white_border(12).unwrap();
         let bytes_test2 = Bmp::read(&mut File::open("test_bmp/test2.bmp").unwrap()).unwrap();
-        assert_eq!(bmp_test2.display().to_string(), bytes_test2.display().to_string());
+        assert_eq!(
+            bmp_test2.display().to_string(),
+            bytes_test2.display().to_string()
+        );
     }
-
 
     #[test]
     fn test_bmp_with_bg_is_zero() {
@@ -527,7 +529,6 @@ mod test {
         assert_eq!(bmp.normalize(), bmp_normalized);
     }
 
-
     #[test]
     fn test_inverse() {
         let bmp = random_bmp();
@@ -535,7 +536,6 @@ mod test {
         assert_ne!(bmp, inverted);
         assert_eq!(bmp, inverted.inverse());
     }
-
 
     fn random_bmp() -> Bmp {
         let mut rng = rand::thread_rng();

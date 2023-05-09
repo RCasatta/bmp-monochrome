@@ -8,7 +8,11 @@ impl Bmp {
         let height = self.height();
         let width = self.width();
 
-        let header = BmpHeader { height, width, bg_is_zero: false };
+        let header = BmpHeader {
+            height,
+            width,
+            bg_is_zero: false,
+        };
         let padding = header.padding() as u8;
 
         header.write(&mut to)?;
@@ -63,7 +67,6 @@ impl BmpHeader {
             to.write_all(&0x00_FF_FF_FFu32.to_le_bytes())?; // color_pallet 0
             to.write_all(&0x00_00_00_00u32.to_le_bytes())?; // color_pallet 1
         }
-        
 
         Ok(())
     }
