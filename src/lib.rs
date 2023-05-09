@@ -176,7 +176,7 @@ impl Bmp {
     /// `normalize` removes the white border if any, and reduce the module pixel size to 1
     /// (the module must be smaller than 10x10 pixel)
     pub fn normalize(&self) -> Bmp {
-        self.remove_white_border().div_with_greater_possible(10)
+        self.remove_white_border().div_with_greater_possible(12)
     }
 
     /// return a new Bmp with `border_size` pixels around

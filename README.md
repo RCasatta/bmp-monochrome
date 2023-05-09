@@ -30,7 +30,4 @@ Generates
 
 ## Minimum Supported Rust Version (MSRV)
 
-*Rust 1.34*
-
-Use
- [u32::try_from](https://doc.rust-lang.org/std/convert/trait.TryFrom.html) introduced in 1.34.0
+*Rust 1.48*
