@@ -59,7 +59,7 @@ impl Bmp {
         let (width, height) = image.dimensions();
         assert_eq!(width, self.width() as u32);
         assert_eq!(height, self.height() as u32);
-        assert_eq!(to_test_string(&image), self.to_test_string());
+        assert_eq!(to_test_string(&image), self.display().to_string().trim_end());
     }
 }
 

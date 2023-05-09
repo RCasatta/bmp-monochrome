@@ -244,20 +244,27 @@ impl Bmp {
         }
     }
 
-    #[allow(dead_code)]
-    fn to_test_string(&self) -> String {
-        let mut s = String::new();
-        for row in self.rows.iter() {
+    /// Return a struct implementing Display to visualize in terminal or in tests
+    pub fn display(&self) -> StringOutput {
+        StringOutput(self)
+    }
+}
+
+/// The struct returned from the [`Bmp::print()`] method which implements Display
+pub struct StringOutput<'a>(&'a Bmp);
+impl<'a> Display for StringOutput<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for row in self.0.rows.iter() {
             for el in row.iter() {
                 if *el {
-                    s.push('#');
+                    write!(f, "#")?;
                 } else {
-                    s.push('.');
+                    write!(f, ".")?;
                 }
             }
-            s.push('\n');
+            write!(f, "\n")?;
         }
-        s.trim_end().to_string()
+        Ok(())
     }
 }
 
@@ -427,7 +434,7 @@ mod test {
 
         let bmp_test2 = data_test1.mul(3).unwrap().add_white_border(12).unwrap();
         let bytes_test2 = Bmp::read(&mut File::open("test_bmp/test2.bmp").unwrap()).unwrap();
-        assert_eq!(bmp_test2.to_test_string(), bytes_test2.to_test_string());
+        assert_eq!(bmp_test2.display().to_string(), bytes_test2.display().to_string());
     }
 
 
