@@ -74,6 +74,7 @@ impl From<std::num::TryFromIntError> for BmpError {
 struct BmpHeader {
     height: u16,
     width: u16,
+    bg_is_zero: bool,
 }
 
 impl Bmp {
@@ -276,6 +277,11 @@ impl BmpHeader {
     fn padding(&self) -> u32 {
         (4 - self.bytes_per_row() % 4) % 4
     }
+
+    /// return wether the bit 0 is to be considered black
+    fn bg_is_zero(&self) -> bool {
+        self.bg_is_zero
+    }
 }
 
 /// arbitrary limit width * height < 1 million
@@ -309,6 +315,7 @@ mod test {
         let mut header = BmpHeader {
             height: 0,
             width: 0,
+            bg_is_zero: false,
         };
         assert_eq!(header.padding(), 0);
 
@@ -330,6 +337,7 @@ mod test {
         let mut header = BmpHeader {
             height: 0,
             width: 0,
+            bg_is_zero: false,
         };
         assert_eq!(header.bytes_per_row(), 0);
 
@@ -422,6 +430,17 @@ mod test {
         assert_eq!(bmp_test2.to_test_string(), bytes_test2.to_test_string());
     }
 
+
+    #[test]
+    fn test_bmp_with_bg_is_zero() {
+        let bmp = Bmp::read(&mut File::open("test_bmp/qr-bolt11.bmp").unwrap()).unwrap();
+        let mut cursor = Cursor::new(vec![]);
+        bmp.write(&mut cursor).unwrap();
+        cursor.set_position(0);
+        let bmp2 = Bmp::read(cursor).unwrap();
+        assert_eq!(bmp, bmp2);
+    }
+
     #[test]
     fn test_monochrome_image() {
         // taken from https://github.com/pertbanking/bitmap-monochrome/blob/master/monochrome_image.bmp
@@ -441,7 +460,7 @@ mod test {
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             ]
             .chunks(18)
-            .map(|r| r.iter().map(|e| *e != 0).collect())
+            .map(|r| r.iter().map(|e| *e == 0).collect())
             .collect(),
         )
         .unwrap();

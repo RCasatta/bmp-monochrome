@@ -19,9 +19,9 @@ impl Bmp {
         for _ in 0..height as usize {
             for _ in 0..width as usize {
                 if reader.read(1)? == 1 {
-                    row.push(true);
+                    row.push(!header.bg_is_zero());
                 } else {
-                    row.push(false);
+                    row.push(header.bg_is_zero());
                 }
             }
             reader.read((8 - (width % 8) as u8) % 8)?; // finish reading the full byte
@@ -57,9 +57,9 @@ impl BmpHeader {
         let _vres = ReadLE::read_u32(&mut from)?;
         let num_colors = ReadLE::read_u32(&mut from)?;
         let _num_imp_colors = ReadLE::read_u32(&mut from)?;
-        let _background_color = ReadLE::read_u32(&mut from)?;
-        let _foreground_color = ReadLE::read_u32(&mut from)?;
-
+        let background_color = ReadLE::read_u32(&mut from)?;
+        let foreground_color = ReadLE::read_u32(&mut from)?;
+        let bg_is_zero = background_color == 0;
         if b != B
             || m != M
             || pixel_offset != HEADER_SIZE
@@ -68,6 +68,7 @@ impl BmpHeader {
             || bits_per_pixel != 1u16
             || compression != 0u32
             || num_colors != 2u32
+            || background_color == foreground_color
         {
             return Err(BmpError::Header);
         }
@@ -76,7 +77,7 @@ impl BmpHeader {
         let height = u16::try_from(height)?;
         check_size(width, height)?;
 
-        Ok(BmpHeader { height, width })
+        Ok(BmpHeader { height, width, bg_is_zero })
     }
 }
 
