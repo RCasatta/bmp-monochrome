@@ -1,6 +1,10 @@
 name: Test and lint
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request: {}
 
 jobs:
 
@@ -8,37 +12,23 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        rust: [stable, nightly, 1.34.0]
+        toolchain: [stable, nightly, 1.48.0]
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - name: test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args:  --verbose --all --all-features
-        if: ${{ matrix.rust != '1.34.0' }}  # arbitrary 0.4.7 not supported
-      - name: run bmp example
-        uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args:  --example bmp
+          toolchain: ${{ matrix.toolchain }}
+      - run: cargo test --all --all-features
+      - run: cargo run --example bmp
 
   cosmetics:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
-          profile: minimal
           components: rustfmt, clippy
-      - name: fmt
-        run: cargo fmt -- --check
-      - name: clippy
-        run: cargo clippy -- -D warnings
+      - run: cargo fmt -- --check
+      - run: cargo clippy -- -D warnings
