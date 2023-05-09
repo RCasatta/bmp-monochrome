@@ -112,14 +112,8 @@ impl Bmp {
             return Err(BmpError::Generic);
         }
         let mul = mul as u16;
-        let new_width = self
-            .width()
-            .checked_mul(mul)
-            .ok_or_else(|| BmpError::Generic)?;
-        let new_height = self
-            .height()
-            .checked_mul(mul)
-            .ok_or_else(|| BmpError::Generic)?;
+        let new_width = self.width().checked_mul(mul).ok_or(BmpError::Generic)?;
+        let new_height = self.height().checked_mul(mul).ok_or(BmpError::Generic)?;
         check_size(new_width, new_height)?;
         let mut rows = Vec::with_capacity(new_height as usize);
 
@@ -191,11 +185,11 @@ impl Bmp {
         let width = self
             .width()
             .checked_add(double_border)
-            .ok_or_else(|| BmpError::Generic)?;
+            .ok_or(BmpError::Generic)?;
         let height = self
             .height()
             .checked_add(double_border)
-            .ok_or_else(|| BmpError::Generic)?;
+            .ok_or(BmpError::Generic)?;
         check_size(width, height)?;
         let mut new_rows = Vec::with_capacity(height as usize);
         let border_size = border_size as usize;
@@ -271,7 +265,7 @@ impl<'a> Display for StringOutput<'a> {
                     write!(f, ".")?;
                 }
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         Ok(())
     }
