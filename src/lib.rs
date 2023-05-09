@@ -248,6 +248,15 @@ impl Bmp {
     pub fn display(&self) -> StringOutput {
         StringOutput(self)
     }
+
+    /// Return inverted bitmap, black pixels become white and viceversa.
+    pub fn inverse(&self) -> Bmp {
+        let mut new_vec = Vec::with_capacity(self.height() as usize);
+        for vec in self.rows.iter() {
+            new_vec.push(vec.iter().map(|e| !e).collect());
+        }
+        Bmp::new(new_vec).unwrap()
+    }
 }
 
 /// The struct returned from the [`Bmp::print()`] method which implements Display
@@ -517,6 +526,16 @@ mod test {
         let bmp_normalized = Bmp::read(File::open("test_bmp/qr_normalized.bmp").unwrap()).unwrap();
         assert_eq!(bmp.normalize(), bmp_normalized);
     }
+
+
+    #[test]
+    fn test_inverse() {
+        let bmp = random_bmp();
+        let inverted = bmp.inverse();
+        assert_ne!(bmp, inverted);
+        assert_eq!(bmp, inverted.inverse());
+    }
+
 
     fn random_bmp() -> Bmp {
         let mut rng = rand::thread_rng();
